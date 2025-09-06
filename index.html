@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SynergySphere — MVP (Mono + Stats + Sorting + Exports + Signals + Profile Progress)</title>
+<title>SynergySphere — MVP (Mono + Stats + Sorting + Exports + Signals + Profile Progress + Activity Log + Smart Attachments)</title>
 
 <!-- ===================== 
      CORE STYLES (MONOCHROME)
@@ -78,6 +78,7 @@ textarea{min-height:100px; resize:vertical}
 .btn.primary{border-color:var(--brand); background:var(--brand); color:var(--bg)}
 .btn.ghost{background:transparent}
 .btn.danger{color:var(--ink); border-color:#4d4d4d}
+.btn.small{padding:6px 10px; border-radius:12px; font-size:12px}
 .btn.full{width:100%; justify-content:center}
 
 .progress{height:10px;border-radius:999px;background:#121212; overflow:hidden}
@@ -129,21 +130,24 @@ textarea{min-height:100px; resize:vertical}
 .due-soon{color:#cfcfcf}
 .due-over{color:#e6e6e6}
 
-/* Status & priority tags — outlined */
+/* Tags & chips */
 .tag{background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:2px 8px}
-.tag.todo,.tag.doing,.tag.done,.tag.low,.tag.med,.tag.high{background:transparent}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--line); border-radius:999px; background:var(--pill); text-decoration:none; color:var(--ink)}
+.chip:hover{filter:brightness(1.1)}
+.chip .mini{font-size:11px; opacity:.7}
 
-/* Pills */
-.pill{background:transparent}
-
-/* Focus rings (accessibility) */
+/* Focus rings */
 :focus-visible{outline:2px dashed var(--ink); outline-offset:2px}
 
-/* --- status signal dots --- */
+/* Status dots */
 .signal{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:-1px}
 .sig-red{background:#ef4444}
 .sig-orange{background:#f59e0b}
 .sig-green{background:#22c55e}
+
+/* Activity icons */
+.icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line);background:var(--pill)}
 </style>
 </head>
 <body>
@@ -269,7 +273,7 @@ textarea{min-height:100px; resize:vertical}
             <input id="task-search" class="input" style="width:220px" placeholder="Find task…" />
             <button id="btn-invite" class="btn">＋ Invite</button>
             <button id="btn-new-task" class="btn primary">＋ New Task</button>
-            <!-- NEW: exports -->
+            <!-- exports -->
             <button id="btn-export-tasks" class="btn">⬇️ Export Tasks (CSV)</button>
             <button id="btn-save-project" class="btn">⬇️ Save Project (JSON)</button>
           </div>
@@ -280,6 +284,7 @@ textarea{min-height:100px; resize:vertical}
           <button class="btn ghost" data-tab="list">List</button>
           <button class="btn ghost" data-tab="discuss">Discuss</button>
           <button class="btn ghost" data-tab="members">Members</button>
+          <button class="btn ghost" data-tab="activity">Activity</button>
         </div>
 
         <div id="tab-board">
@@ -303,7 +308,7 @@ textarea{min-height:100px; resize:vertical}
           <div class="card" style="overflow:auto">
             <table class="table">
               <thead class="muted">
-                <tr><th>Task</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th style="text-align:right">Actions</th></tr>
+                <tr><th>Task</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th>Links</th><th style="text-align:right">Actions</th></tr>
               </thead>
               <tbody id="list-body"></tbody>
             </table>
@@ -323,6 +328,16 @@ textarea{min-height:100px; resize:vertical}
 
         <div id="tab-members" class="hidden">
           <div id="member-cards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px"></div>
+        </div>
+
+        <div id="tab-activity" class="hidden">
+          <div class="card">
+            <div class="row" style="justify-content:space-between">
+              <h4 class="h">Activity (who changed what & where)</h4>
+              <div class="small muted">Newest first</div>
+            </div>
+            <div id="activity-list" class="grid" style="grid-template-columns:minmax(0,1fr); gap:10px; margin-top:10px"></div>
+          </div>
         </div>
       </section>
 
@@ -359,9 +374,8 @@ textarea{min-height:100px; resize:vertical}
 
           <div class="hr"></div>
 
-          <!-- === Profile: Details + Work Progress === -->
+          <!-- Profile: Details + Work Progress -->
           <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:12px">
-            <!-- Personal info -->
             <div class="card">
               <h4 class="h">Personal Info</h4>
               <div style="height:8px"></div>
@@ -384,7 +398,6 @@ textarea{min-height:100px; resize:vertical}
               </div>
             </div>
 
-            <!-- Work progress -->
             <div class="card">
               <h4 class="h">Work Progress</h4>
               <div class="small muted">Percent of tasks assigned to you that are completed</div>
@@ -441,11 +454,12 @@ const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelec
 const uid=()=>Math.random().toString(36).slice(2,10);
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const fmt=d=>d?new Date(d).toLocaleDateString():"—";
-const LS='synergy_mono_v3';
-function load(){ try{return JSON.parse(localStorage.getItem(LS)||"{}");}catch{return{}} }
-function save(s){ localStorage.setItem(LS, JSON.stringify(s)); }
+const LSV='synergy_mono_v5'; // bumped to include smart attachments
+function load(){ try{return JSON.parse(localStorage.getItem(LSV)||"{}");}catch{return{}} }
+function save(s){ localStorage.setItem(LSV, JSON.stringify(s)); }
 function initials(n){return (n||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()}
 function daysBetween(a,b){ return Math.floor((new Date(a).setHours(0,0,0,0)-new Date(b).setHours(0,0,0,0))/86400000); }
+const userName = id => STATE.users[id]?.name || 'Unknown';
 
 /* status dot */
 function statusSignal(status){
@@ -456,7 +470,7 @@ function statusSignal(status){
   }
 }
 
-/* --- user progress (assigned tasks) --- */
+/* user progress */
 function userProgress(userId){
   const tasks = Object.values(STATE.tasks).filter(t => t.assigneeId === userId);
   const total = tasks.length;
@@ -465,12 +479,11 @@ function userProgress(userId){
   return { total, done, pct };
 }
 
-/* --- simple donut chart (canvas) --- */
+/* donut chart */
 function drawDonut(canvas, pct){
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  // scale canvas to be crisp
   const cssW = canvas.clientWidth || canvas.width;
   const cssH = canvas.clientHeight || canvas.height || 220;
   canvas.width  = Math.round(cssW * dpr);
@@ -488,30 +501,94 @@ function drawDonut(canvas, pct){
   ctx.lineCap = 'round';
   ctx.lineWidth = 18;
 
-  // track
   ctx.strokeStyle = track;
   ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
 
-  // arc
   const ang = (Math.PI*2)*(pct/100);
   ctx.strokeStyle = color;
   ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2, -Math.PI/2 + ang, false); ctx.stroke();
 
-  // label
   ctx.fillStyle = ink;
   ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(pct + '%', cx, cy);
 }
 
+/* ACTIVITY/AUDIT LOG */
+function pushAudit({projectId, entityType, entityId, action, byUserId, meta={}}){
+  const e={id:uid(),projectId,entityType,entityId,action,byUserId,meta,ts:Date.now()};
+  (STATE.audit||=[]).push(e);
+  save(STATE);
+}
+function formatAudit(e){
+  const who = userName(e.byUserId);
+  if(e.entityType==='project'){
+    if(e.action==='project_created') return `${who} created project “${e.meta.name}”`;
+    if(e.action==='project_renamed') return `${who} renamed project to “${e.meta.newName}”`;
+    if(e.action==='member_added') return `${who} added ${e.meta.memberName} to the project`;
+  }
+  if(e.entityType==='task'){
+    if(e.action==='task_created') return `${who} created task “${e.meta.title}”`;
+    if(e.action==='task_deleted') return `${who} deleted task “${e.meta.title}”`;
+    if(e.action==='status_changed') return `${who} moved “${e.meta.title}” to ${labelFromStatus(e.meta.to)}`;
+    if(e.action==='task_assigned') return `${who} assigned “${e.meta.title}” to ${e.meta.assigneeName||'Unassigned'}`;
+    if(e.action==='title_changed') return `${who} renamed a task to “${e.meta.newTitle}”`;
+    if(e.action==='due_changed') return `${who} changed due: “${e.meta.title}” → ${e.meta.dueDate||'—'}`;
+    if(e.action==='priority_changed') return `${who} set priority of “${e.meta.title}” to ${e.meta.priority}`;
+    if(e.action==='attachment_opened') return `${who} opened “${e.meta.attName}” (${e.meta.kind})`;
+  }
+  if(e.entityType==='message' && e.action==='message_posted') return `${who} posted a message`;
+  return `${who} updated ${e.entityType}`;
+}
+
+/* SMART ATTACHMENT OPENERS */
+const OFFICE_SCHEMES = { doc:'ms-word', docx:'ms-word', ppt:'ms-powerpoint', pptx:'ms-powerpoint', xls:'ms-excel', xlsx:'ms-excel' };
+const isWindows = /Windows/i.test(navigator.userAgent || '');
+function extFromUrl(u){ try{ const p=new URL(u); const m=p.pathname.match(/\.([a-z0-9]+)$/i); return m?m[1].toLowerCase():'' }catch{return ''} }
+function deepLinkFor(url){
+  const ext = extFromUrl(url);
+  const scheme = OFFICE_SCHEMES[ext];
+  return scheme ? `${scheme}:ofe|u|${encodeURI(url)}` : null;
+}
+function openAttachmentById(taskId, attId, preferDesktop=false){
+  const t = STATE.tasks[taskId]; if(!t) return;
+  const att = (t.attachments||[]).find(a=>a.id===attId); if(!att || !att.url) return;
+  const url = att.url.trim();
+  let opened = false;
+
+  if(preferDesktop && isWindows){
+    const deep = deepLinkFor(url);
+    if(deep){
+      window.open(deep, '_self');
+      opened = true;
+    }
+  }
+  if(!opened){
+    window.open(url, '_blank', 'noopener');
+  }
+  pushAudit({projectId:t.projectId,entityType:'task',entityId:t.id,action:'attachment_opened',byUserId:STATE.session.userId,meta:{attName:att.name||url,kind: extFromUrl(url)||'link'}});
+}
+
+/* Seed */
 function seed(){
   const now=new Date().toISOString();
   const me={id:uid(),name:'Alex Rivera',email:'alex@example.com',degree:'',expertise:''};
   const u2={id:uid(),name:'Sam Patel',email:'sam@example.com',degree:'',expertise:''};
   const prj={id:uid(),name:'Website Revamp',ownerId:me.id,memberIds:[me.id,u2.id],taskIds:[],createdAt:now};
-  const t1={id:uid(),projectId:prj.id,title:'Define MVP scope',description:'Outline must-have features.',assigneeId:me.id,dueDate:todayISO(),status:'TO_DO',priority:'HIGH',subtasks:[{id:uid(),text:'Collect inputs',done:true},{id:uid(),text:'Draft list',done:false}],attachments:[],createdAt:now,updatedAt:now};
-  const t2={id:uid(),projectId:prj.id,title:'Set up CI pipeline',description:'Basic build + test',assigneeId:u2.id,dueDate:todayISO(),status:'IN_PROGRESS',priority:'MED',subtasks:[{id:uid(),text:'Github Actions',done:true}],attachments:[],createdAt:now,updatedAt:now};
-  const t3={id:uid(),projectId:prj.id,title:'Design mobile layout',description:'Bottom nav + cards',assigneeId:me.id,dueDate:todayISO(),status:'DONE',priority:'LOW',subtasks:[],attachments:[],createdAt:now,updatedAt:now};
+  const t1={id:uid(),projectId:prj.id,title:'Define MVP scope',description:'Outline must-have features.',assigneeId:me.id,dueDate:todayISO(),status:'TO_DO',priority:'HIGH',
+            subtasks:[{id:uid(),text:'Collect inputs',done:true},{id:uid(),text:'Draft list',done:false}],
+            attachments:[
+              {id:uid(),name:'Word',url:'https://example.com/spec.docx'},
+              {id:uid(),name:'PPT',url:'https://example.com/pitch.pptx'},
+              {id:uid(),name:'GitHub',url:'https://github.com/'}
+            ],
+            createdAt:now,updatedAt:now};
+  const t2={id:uid(),projectId:prj.id,title:'Set up CI pipeline',description:'Basic build + test',assigneeId:u2.id,dueDate:todayISO(),status:'IN_PROGRESS',priority:'MED',
+            subtasks:[{id:uid(),text:'Github Actions',done:true}],
+            attachments:[{id:uid(),name:'README',url:'https://github.com/'}],
+            createdAt:now,updatedAt:now};
+  const t3={id:uid(),projectId:prj.id,title:'Design mobile layout',description:'Bottom nav + cards',assigneeId:me.id,dueDate:todayISO(),status:'DONE',priority:'LOW',
+            subtasks:[],attachments:[],createdAt:now,updatedAt:now};
   prj.taskIds=[t1.id,t2.id,t3.id];
   const m1={id:uid(),authorId:me.id,projectId:prj.id,body:'Kickoff done. Keep updates here.',createdAt:now};
   const m2={id:uid(),authorId:u2.id,projectId:prj.id,parentId:m1.id,body:'Roger that. CI progress soon.',createdAt:now};
@@ -522,21 +599,20 @@ function seed(){
     tasks:{[t1.id]:t1,[t2.id]:t2,[t3.id]:t3},
     messages:{[m1.id]:m1,[m2.id]:m2},
     notifications:[],
+    audit:[{id:uid(),projectId:prj.id,entityType:'project',entityId:prj.id,action:'project_created',byUserId:me.id,meta:{name:prj.name},ts:Date.now()-400000}],
     session:{userId:me.id},
     prefs:{notifyDue:true},
     theme: prefersLight ? 'light' : 'dark',
-    dueNotified:{} /* {taskId:true} */
+    dueNotified:{} 
   }
 }
-let STATE=(()=>{const s=load(); if(!s.users) return seed(); return s})();
+let STATE=(()=>{const s=load(); if(!s.users) return seed(); if(!s.audit) s.audit=[]; return s})();
 const ROUTE={current:'dashboard',projectId:null,tab:'board'};
 const setState=p=>{STATE={...STATE,...p}; save(STATE); render()};
 const goto=r=>{ROUTE.current=r; render()};
 const gotoProject=id=>{ROUTE.current='project'; ROUTE.projectId=id; ROUTE.tab='board'; render()};
 
-/* ==========================
-   THEME (light/dark mono)
-   ========================== */
+/* THEME */
 function applyTheme(){
   document.documentElement.classList.toggle('light', STATE.theme==='light');
   document.documentElement.style.colorScheme = (STATE.theme==='light'?'light':'dark');
@@ -545,18 +621,13 @@ $('#btn-theme').onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light
 const bindProfileTheme=()=>{ const b=$('#pref-theme'); if(b){ b.onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light'); save(STATE); applyTheme(); }; } };
 applyTheme();
 
-/* ==========================
-   AUTH
-   ========================== */
+/* AUTH */
 function showAuth(){ $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); $('#bottom').classList.add('hidden'); }
 function showApp(){ $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#bottom').classList.remove('hidden'); }
-
 $('#btn-login').onclick=()=>{ const email=$('#auth-email').value.trim().toLowerCase(); const user=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email); if(!user){alert('No such user. Try Sign up or alex@example.com'); return} setState({session:{userId:user.id}}) };
-$('#btn-signup').onclick=()=>{ const email=$('#auth-email').value.trim(); const name=$('#auth-name').value.trim()||email.split('@')[0]; if(!email) return alert('Email required'); const exists=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email.toLowerCase()); if(exists){alert('User exists, try login'); return} const u={id:uid(),name,email,degree:'',expertise:''}; setState({users:{...STATE.users,[u.id]:u},session:{userId:u.id}}) };
+$('#btn-signup').onclick=()=>{ const email=$('#auth-email').value.trim(); const name=$('#auth-name').value.trim()||email.split('@')[0]; if(!email) return alert('Email required'); const exists=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email.toLowerCase()); if(exists){alert('User exists, try login'); return} const u={id:uid(),name,email,degree:'',expertise:''}; setState({users:{...STATE.users,[u.id]:u},session:{userId:u.id}}); pushAudit({projectId:null,entityType:'user',entityId:u.id,action:'user_created',byUserId:u.id,meta:{name:u.name}}); };
 
-/* ==========================
-   DASHBOARD HELPERS (stats/sort)
-   ========================== */
+/* DASHBOARD HELPERS */
 function stats(p){ const ts=p.taskIds.map(id=>STATE.tasks[id]).filter(Boolean); const total=ts.length; const done=ts.filter(t=>t.status==='DONE').length; const pct=total?Math.round(done/total*100):0; return {total,done,pct} }
 function projectProgress(p){ return stats(p); }
 function isProjectCompleted(p){ const s=projectProgress(p); return s.total>0 && s.done===s.total; }
@@ -586,9 +657,7 @@ function sortProjects(list, mode){
   return list.slice().sort((a,b)=> a.name.localeCompare(b.name));
 }
 
-/* ==========================
-   CORE RENDER
-   ========================== */
+/* CORE RENDER */
 function render(){
   applyTheme();
   const me=STATE.session?.userId && STATE.users[STATE.session.userId];
@@ -618,9 +687,7 @@ function render(){
   dueSweep();
 }
 
-/* ==========================
-   DASHBOARD + TIMELINE
-   ========================== */
+/* DASHBOARD + TIMELINE */
 function renderDashboard(me){
   const container=$('#project-cards'); container.innerHTML='';
   const keyword=$('#project-search').value?.toLowerCase()||'';
@@ -628,19 +695,15 @@ function renderDashboard(me){
     p => p.memberIds.includes(me.id) && (!keyword || p.name.toLowerCase().includes(keyword))
   );
 
-  // apply status filter
   const sf = ($('#project-status-filter')?.value)||'';
   if(sf === 'active')    list = list.filter(p => !isProjectCompleted(p));
   if(sf === 'completed') list = list.filter(isProjectCompleted);
 
-  // sort
   const sortMode = ($('#project-sort')?.value) || 'name';
   list = sortProjects(list, sortMode);
 
-  // stats tiles over displayed set
   renderDashStats(list);
 
-  // empty state + cards
   if(!list.length){
     container.innerHTML = `<div class="card muted">No projects match.</div>`;
   } else {
@@ -663,7 +726,6 @@ function renderDashboard(me){
     });
   }
 
-  // Timeline: upcoming or overdue tasks across all projects
   const allTasks=Object.values(STATE.tasks);
   const upcoming=allTasks.filter(t=>t.status!=='DONE' && t.dueDate).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12);
   const tl=$('#timeline'); tl.innerHTML = upcoming.map(t=>{
@@ -684,16 +746,13 @@ function renderDashboard(me){
     </div>`;
   }).join('') || `<div class="small muted">All clear. No upcoming items.</div>`;
 
-  // ensure bindings exist
   const psf = $('#project-status-filter'); if(psf) psf.onchange=()=>render();
   const pso = $('#project-sort'); if(pso) pso.onchange=()=>render();
 }
 $('#new-project').onclick=()=>openModalProject();
 $('#project-search').oninput=()=>render();
 
-/* ==========================
-   PROJECT
-   ========================== */
+/* PROJECT */
 $('#btn-back-home').onclick=()=>goto('dashboard');
 $('#btn-new-task').onclick=()=>openModalTask(ROUTE.projectId);
 $('#btn-invite').onclick=()=>openModalInvite(ROUTE.projectId);
@@ -713,12 +772,13 @@ function renderProject(me){
   $('#tab-list').classList.toggle('hidden', ROUTE.tab!=='list');
   $('#tab-discuss').classList.toggle('hidden', ROUTE.tab!=='discuss');
   $('#tab-members').classList.toggle('hidden', ROUTE.tab!=='members');
+  $('#tab-activity').classList.toggle('hidden', ROUTE.tab!=='activity');
 
-  // bind export buttons
   const exCSV = $('#btn-export-tasks'); if(exCSV) exCSV.onclick = () => exportTasksCSV(p.id);
   const exPRJ = $('#btn-save-project'); if(exPRJ) exPRJ.onclick = () => saveProjectJSON(p.id);
 
   renderBoard(); renderList(); renderDiscuss(); renderMembers();
+  renderActivity();
 }
 
 /* Filters */
@@ -734,7 +794,7 @@ function filteredTasks(p){
   });
 }
 
-/* Board */
+/* Due label */
 function dueBadge(t){
   if(!t.dueDate) return '<span class="small muted">—</span>';
   const d = daysBetween(t.dueDate, todayISO());
@@ -752,9 +812,32 @@ function prioTag(p){
   if(p==='MED') return `<span class="tag small">Medium</span>`;
   return `<span class="tag small">Low</span>`;
 }
+const labelFromStatus = s => s==='DONE'?'Done':(s==='IN_PROGRESS'?'In Progress':'To-Do');
+
+/* Attachment chips */
+function renderAttachmentChips(t){
+  const list = t.attachments||[];
+  if(!list.length) return '';
+  const win = isWindows;
+  return `<div class="chips" style="margin-top:8px">
+    ${list.map(a=>{
+      const id=a.id; const url=a.url||''; const name=(a.name||'Link').slice(0,24);
+      const ext = extFromUrl(url);
+      const canDesktop = win && !!deepLinkFor(url);
+      return `
+        <a class="chip" href="${url}" target="_blank" rel="noopener" title="${url}">
+          <span class="mini">🔗</span>${name}
+        </a>
+        ${canDesktop ? `<button class="btn small" title="Open in desktop app" onclick="openAttachmentById('${t.id}','${id}',true)">🖥 Open</button>`:''}
+      `;
+    }).join('')}
+  </div>`;
+}
+
+/* Board */
 function renderTaskCard(t){
   const u=t.assigneeId?STATE.users[t.assigneeId]:null;
-  const label=t.status==='DONE'?'Done':(t.status==='IN_PROGRESS'?'In Progress':'To-Do');
+  const label=labelFromStatus(t.status);
   const sp=subProgress(t);
   return `<div class="task" draggable="true" data-id="${t.id}">
     <div class="row" style="justify-content:space-between">
@@ -768,6 +851,7 @@ function renderTaskCard(t){
     ${sp.total?`
       <div class="small" style="margin-top:6px">${sp.done}/${sp.total} checklist</div>
       <div class="progress"><b style="width:${sp.pct}%"></b></div>`:""}
+    ${renderAttachmentChips(t)}
     <div class="meta">
       <div class="row small">
         ${u?`<div class="avatar" title="${u.name}" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div><span>${u.name}</span>`:`<span class="muted small">Unassigned</span>`}
@@ -789,11 +873,15 @@ function enableDnD(){
   zones.forEach(z=>{
     z.addEventListener('dragover', e=>{ e.preventDefault(); z.classList.add('active'); e.dataTransfer.dropEffect='move'; });
     z.addEventListener('dragleave', ()=> z.classList.remove('active'));
-    z.addEventListener('drop', ()=>{ z.classList.remove('active'); if(!dragging) return;
+    z.addEventListener('drop', ()=>{ 
+      z.classList.remove('active'); if(!dragging) return;
       const col=z.id==='kan-todo'?'TO_DO':(z.id==='kan-inprog'?'IN_PROGRESS':'DONE');
       const id=dragging.getAttribute('data-id'); const t=STATE.tasks[id]; if(!t) return;
-      t.status=col; t.updatedAt=new Date().toISOString();
-      save(STATE); renderBoard(); renderList();
+      if(t.status!==col){
+        t.status=col; t.updatedAt=new Date().toISOString();
+        pushAudit({projectId:t.projectId,entityType:'task',entityId:t.id,action:'status_changed',byUserId:STATE.session.userId,meta:{title:t.title,to:col}});
+        save(STATE); renderBoard(); renderList(); renderActivity();
+      }
     });
   });
 }
@@ -819,19 +907,29 @@ function renderList(){
   const rows=filteredTasks(p);
   $('#list-body').innerHTML = rows.map(t=>{
     const u=t.assigneeId?STATE.users[t.assigneeId]:null;
-    const label=t.status==='DONE'?'Done':(t.status==='IN_PROGRESS'?'In Progress':'To-Do');
+    const label=labelFromStatus(t.status);
+    const links = (t.attachments||[]).map(a=>{
+      const ext = extFromUrl(a.url||'');
+      const desktop = isWindows && !!deepLinkFor(a.url||'');
+      return `
+        <span class="chips">
+          <a class="chip" href="${a.url||'#'}" target="_blank" rel="noopener"><span class="mini">🔗</span>${(a.name||'Link')}</a>
+          ${desktop?`<button class="btn small" onclick="openAttachmentById('${t.id}','${a.id}',true)">🖥</button>`:''}
+        </span>`;
+    }).join('');
     return `<tr>
       <td><b>${t.title}</b><div class="small muted">${t.description||""}</div></td>
       <td>${u?`<div class="row"><div class="avatar" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div>${u.name}</div>`:`<span class="small muted">Unassigned</span>`}</td>
       <td>${dueBadge(t)}</td>
       <td>${prioTag(t.priority||'LOW')}</td>
       <td><span class="tag small">${statusSignal(t.status)}${label}</span></td>
+      <td>${links||'<span class="small muted">—</span>'}</td>
       <td style="text-align:right">
         <button class="btn" onclick="openModalTask('${t.projectId}','${t.id}')">Edit</button>
         <button class="btn danger" onclick="delTask('${t.id}')">Delete</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="6" class="muted">No tasks</td></tr>`;
+  }).join('') || `<tr><td colspan="7" class="muted">No tasks</td></tr>`;
 }
 
 /* Discuss */
@@ -854,13 +952,20 @@ function renderDiscuss(){
     </div>`;
   }).join('') || `<div class="card muted">No messages yet. Start one above.</div>`;
 }
+function linkify(text){
+  const safe = (text || '').replace(/</g, '&lt;');
+  // turn any http(s) link into a clickable <a>
+  return safe.replace(/\bhttps?:\/\/[^\s)]+/g, (url) =>
+    `<a href="${url}" target="_blank" rel="noopener">${url}</a>`
+  );
+}
 function renderMsg(m){
   const u=STATE.users[m.authorId];
   return `<div class="row" style="align-items:flex-start; gap:8px">
     <div class="avatar" style="width:28px;height:28px;font-size:11px">${initials(u?.name||'?')}</div>
     <div>
       <div class="small"><b>${u?.name||'Unknown'}</b> <span class="muted">• ${new Date(m.createdAt).toLocaleString()}</span></div>
-      <div>${(m.body||"").replace(/</g,"&lt;")}</div>
+      <div>${linkify(m.body)}</div>
     </div>
   </div>`;
 }
@@ -870,12 +975,7 @@ $('#msg-post').onclick=()=>{
   const p=STATE.projects[ROUTE.projectId];
   const m={id:uid(),authorId:me.id,projectId:p.id,body:v,createdAt:new Date().toISOString()};
   STATE.messages[m.id]=m; save(STATE); $('#msg-text').value=""; renderDiscuss();
-};
-function postReply(projectId,parentId){
-  const me=STATE.users[STATE.session.userId];
-  const input=$(`#reply-${parentId}`); const v=input.value.trim(); if(!v) return;
-  const m={id:uid(),authorId:me.id,projectId,parentId,body:v,createdAt:new Date().toISOString()};
-  STATE.messages[m.id]=m; save(STATE); renderDiscuss();
+  pushAudit({projectId:p.id,entityType:'message',entityId:m.id,action:'message_posted',byUserId:me.id,meta:{}});
 }
 
 /* Members */
@@ -893,9 +993,27 @@ function renderMembers(){
   }).join('');
 }
 
-/* ==========================
-   NOTIFICATIONS & PROFILE
-   ========================== */
+/* Activity */
+function renderActivity(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  const list=(STATE.audit||[]).filter(e=>e.projectId===p.id).sort((a,b)=>b.ts-a.ts);
+  const box=$('#activity-list');
+  if(!box) return;
+  if(!list.length){ box.innerHTML = `<div class="small muted">No activity yet.</div>`; return; }
+  box.innerHTML = list.map(e=>{
+    const icon = e.entityType==='task'?'🗂️':(e.entityType==='project'?'📁':(e.entityType==='message'?'💬':'📝'));
+    return `<div class="row card">
+      <div class="icon">${icon}</div>
+      <div style="flex:1">
+        <div>${formatAudit(e)}</div>
+        <div class="small muted">${new Date(e.ts).toLocaleString()}</div>
+      </div>
+      ${e.entityType==='task' ? `<button class="btn right" onclick="gotoProject('${e.projectId}')">Open</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* NOTIFICATIONS & PROFILE */
 $('#btn-ping').onclick=()=>{ const me=STATE.session.userId; STATE.notifications.push({id:uid(),userId:me,type:'INFO',body:'Demo notification ping!',read:false,ts:Date.now()}); save(STATE); render(); };
 function renderNotifications(me){
   const items=(STATE.notifications||[]).filter(n=>n.userId===me.id).sort((a,b)=>b.ts-a.ts);
@@ -919,13 +1037,11 @@ function renderProfile(me){
   if ($('#pref-due')) $('#pref-due').checked = !!STATE.prefs?.notifyDue;
   bindProfileTheme();
 
-  // --- populate new fields ---
   if ($('#pf-name'))   $('#pf-name').value   = me.name || '';
   if ($('#pf-email'))  $('#pf-email').value  = me.email || '';
   if ($('#pf-degree')) $('#pf-degree').value = me.degree || '';
   if ($('#pf-domain')) $('#pf-domain').value = me.expertise || '';
 
-  // save handler
   const saveBtn = $('#pf-save');
   if (saveBtn){
     saveBtn.onclick = () => {
@@ -935,12 +1051,11 @@ function renderProfile(me){
       u.degree    = ($('#pf-degree').value || '').trim();
       u.expertise = ($('#pf-domain').value || '').trim();
       save(STATE);
-      renderProfile(u); // refresh header + chart
+      renderProfile(u);
       alert('Profile saved');
     };
   }
 
-  // progress chart
   const prog = userProgress(me.id);
   drawDonut($('#pf-chart'), prog.pct);
   if($('#pf-chart-meta')) $('#pf-chart-meta').textContent = `${prog.done} of ${prog.total} assigned tasks completed (${prog.pct}%)`;
@@ -962,16 +1077,15 @@ $('#file-import').onchange=(e)=>{
     try{
       const obj=JSON.parse(reader.result);
       if(!obj.users || !obj.projects) throw new Error('Invalid file');
-      localStorage.setItem(LS, JSON.stringify(obj));
+      if(!obj.audit) obj.audit=[];
+      localStorage.setItem(LSV, JSON.stringify(obj));
       STATE=obj; render(); alert('Imported successfully!');
     }catch(err){ alert('Import failed: '+err.message); }
   };
   reader.readAsText(f);
 };
 
-/* ==========================
-   DUE CHECK
-   ========================== */
+/* DUE CHECK */
 function dueSweep(){
   if(!STATE.prefs?.notifyDue) return;
   const me=STATE.session?.userId;
@@ -981,7 +1095,7 @@ function dueSweep(){
     const key=`${t.id}:${today}`;
     if(STATE.dueNotified[key]) return;
     const diff=daysBetween(t.dueDate, today);
-    if(diff>0){ // overdue
+    if(diff>0){
       STATE.notifications.push({id:uid(),userId:me,projectId:t.projectId,type:'DUE',body:`Overdue: ${t.title}`,read:false,ts:Date.now()});
       STATE.dueNotified[key]=true;
     }else if(diff===0){
@@ -993,9 +1107,7 @@ function dueSweep(){
 }
 setInterval(dueSweep, 60*60*1000);
 
-/* ==========================
-   PROJECT EXPORTS (CSV / JSON)
-   ========================== */
+/* PROJECT EXPORTS */
 function csvEscape(v){
   if(v==null) return '';
   const s = String(v).replace(/"/g,'""');
@@ -1005,18 +1117,19 @@ function exportTasksCSV(projectId){
   const p = STATE.projects[projectId];
   if(!p) return;
   const rows = [
-    ['Task ID','Project','Title','Description','Assignee Name','Assignee Email','Due Date','Status','Priority','Checklist Done','Checklist Total','Attachments','Created At','Updated At']
+    ['Task ID','Project','Title','Description','Assignee Name','Assignee Email','Due Date','Status','Priority','Checklist Done','Checklist Total','Attachment Names','Attachment URLs','Created At','Updated At']
   ];
   (p.taskIds||[]).map(id=>STATE.tasks[id]).filter(Boolean).forEach(t=>{
     const u = t.assigneeId ? STATE.users[t.assigneeId] : null;
     const subs = t.subtasks||[];
     const done = subs.filter(s=>s.done).length;
-    const atts = (t.attachments||[]).length;
+    const attNames = (t.attachments||[]).map(a=>a.name).join(' | ');
+    const attUrls  = (t.attachments||[]).map(a=>a.url).join(' | ');
     rows.push([
       t.id, p.name, t.title||'', t.description||'',
       u?u.name:'', u?u.email:'',
       t.dueDate||'', t.status, t.priority||'',
-      done, subs.length, atts,
+      done, subs.length, attNames, attUrls,
       t.createdAt||'', t.updatedAt||''
     ]);
   });
@@ -1039,15 +1152,14 @@ function saveProjectJSON(projectId){
   document.body.appendChild(a); a.click(); a.remove();
 }
 
-/* ==========================
-   ACTIONS / MODALS
-   ========================== */
+/* ACTIONS / MODALS */
 function delTask(id){
   const t=STATE.tasks[id]; if(!t) return;
   const p=STATE.projects[t.projectId];
+  pushAudit({projectId:t.projectId,entityType:'task',entityId:id,action:'task_deleted',byUserId:STATE.session.userId,meta:{title:t.title}});
   delete STATE.tasks[id];
   p.taskIds=p.taskIds.filter(x=>x!==id);
-  save(STATE); renderBoard(); renderList();
+  save(STATE); renderBoard(); renderList(); renderActivity();
 }
 
 /* Project modal */
@@ -1068,6 +1180,7 @@ function createProject(){
   const ownerId=STATE.session.userId;
   const p={id:uid(),name,ownerId,memberIds:[ownerId],taskIds:[],createdAt:new Date().toISOString()};
   STATE.projects[p.id]=p; save(STATE); closeModal(); render();
+  pushAudit({projectId:p.id,entityType:'project',entityId:p.id,action:'project_created',byUserId:ownerId,meta:{name:p.name}});
 }
 
 /* Rename project */
@@ -1088,6 +1201,7 @@ function renameProject(){
   const p=STATE.projects[ROUTE.projectId]; if(!p) return;
   const v=$('#rename-title').value.trim(); if(!v) return;
   p.name=v; save(STATE); closeModal(); render();
+  pushAudit({projectId:p.id,entityType:'project',entityId:p.id,action:'project_renamed',byUserId:STATE.session.userId,meta:{newName:v}});
 }
 
 /* Invite modal */
@@ -1113,10 +1227,11 @@ function inviteMember(projectId){
   const p=STATE.projects[projectId];
   if(!p.memberIds.includes(user.id)) p.memberIds.push(user.id);
   STATE.notifications.push({id:uid(),userId:user.id,projectId,type:'INVITE',body:`You were added to project “${p.name}”`,read:false,ts:Date.now()});
-  save(STATE); closeModal(); renderMembers();
+  pushAudit({projectId:projectId,entityType:'project',entityId:projectId,action:'member_added',byUserId:STATE.session.userId,meta:{memberName:user.name}});
+  save(STATE); closeModal(); renderMembers(); renderActivity();
 }
 
-/* Task modal with Priority + Subtasks + Attachments */
+/* Task modal (+ attachments) */
 function openModalTask(projectId, taskId){
   const isEdit=Boolean(taskId);
   const t=isEdit?STATE.tasks[taskId]:{title:"",description:"",assigneeId:"",dueDate:todayISO(),status:"TO_DO",priority:"MED",subtasks:[],attachments:[]};
@@ -1168,9 +1283,10 @@ function openModalTask(projectId, taskId){
 
     <div class="hr"></div>
     <div class="row" style="justify-content:space-between">
-      <b>Attachments</b>
+      <b>Attachments (Word/PPT/GitHub/any link)</b>
       <button class="btn" onclick="addAttachmentRow()">＋ Add link</button>
     </div>
+    <div class="small muted">Tip: For desktop apps on Windows, paste a .docx/.pptx/.xlsx web URL (OneDrive/SharePoint/Drive). The “🖥 Open” button will try the native app.</div>
     <div id="att-list">${attsHtml || `<div class="small muted">No attachments</div>`}</div>
 
     <div style="height:12px"></div>
@@ -1194,8 +1310,8 @@ function addSubtaskRow(){
 }
 function rowAttachment(id,name,url){
   return `<div class="row small" data-att="${id}">
-    <input class="input" style="flex:1" value="${(name||'').replace(/"/g,'&quot;')}" placeholder="Display name" />
-    <input class="input" style="flex:1" value="${(url||'').replace(/"/g,'&quot;')}" placeholder="https://link" />
+    <input class="input" style="flex:1" value="${(name||'').replace(/"/g,'&quot;')}" placeholder="Display name (Word, PPT, GitHub…)" />
+    <input class="input" style="flex:2" value="${(url||'').replace(/"/g,'&quot;')}" placeholder="https://your-link" />
     <button class="btn danger" onclick="this.parentElement.remove()">✕</button>
   </div>`;
 }
@@ -1205,6 +1321,7 @@ function addAttachmentRow(){
   c.insertAdjacentHTML('beforeend', rowAttachment(uid(),'',''));
 }
 function saveTask(projectId,taskId){
+  const p=STATE.projects[projectId];
   const patch={
     title:$('#tk-title').value.trim(),
     description:$('#tk-desc').value.trim(),
@@ -1219,26 +1336,41 @@ function saveTask(projectId,taskId){
   });
   const atts=[]; $$('#att-list [data-att]').forEach(row=>{
     const id=row.getAttribute('data-att'); const [n,u]=row.querySelectorAll('input');
-    if(n.value.trim() || u.value.trim()) atts.push({id,name:n.value.trim(),url:u.value.trim()});
+    if(n.value.trim() || u.value.trim()) atts.push({id,name:n.value.trim()||'Link',url:u.value.trim()});
   });
   patch.subtasks=subs; patch.attachments=atts;
 
   if(taskId){
     const t=STATE.tasks[taskId]; if(!t) return;
+    const prev = {...t};
     const updated={...t,...patch,updatedAt:new Date().toISOString()};
-    if(patch.assigneeId && patch.assigneeId!==t.assigneeId){
-      STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${updated.title}`,read:false,ts:Date.now()});
+    if(patch.title && patch.title!==prev.title){
+      pushAudit({projectId,entityType:'task',entityId:taskId,action:'title_changed',byUserId:STATE.session.userId,meta:{newTitle:patch.title}});
     }
-    STATE.tasks[taskId]=updated; save(STATE); closeModal(); renderBoard(); renderList();
+    if(patch.status!==prev.status){
+      pushAudit({projectId,entityType:'task',entityId:taskId,action:'status_changed',byUserId:STATE.session.userId,meta:{title:patch.title||prev.title,to:patch.status}});
+    }
+    if(patch.assigneeId!==prev.assigneeId){
+      pushAudit({projectId,entityType:'task',entityId:taskId,action:'task_assigned',byUserId:STATE.session.userId,meta:{title:patch.title||prev.title,assigneeName: userName(patch.assigneeId)}});
+    }
+    if(patch.dueDate!==prev.dueDate){
+      pushAudit({projectId,entityType:'task',entityId:taskId,action:'due_changed',byUserId:STATE.session.userId,meta:{title:patch.title||prev.title,dueDate:patch.dueDate}});
+    }
+    if(patch.priority!==prev.priority){
+      pushAudit({projectId,entityType:'task',entityId:taskId,action:'priority_changed',byUserId:STATE.session.userId,meta:{title:patch.title||prev.title,priority:patch.priority}});
+    }
+    STATE.tasks[taskId]=updated; save(STATE); closeModal(); renderBoard(); renderList(); renderActivity();
     if(ROUTE.current==='profile'){ renderProfile(STATE.users[STATE.session.userId]); }
   }else{
     const id=uid(); const now=new Date().toISOString();
     const t={id,projectId,createdAt:now,updatedAt:now,status:'TO_DO',priority:'MED',subtasks:[],attachments:[],...patch};
     STATE.tasks[id]=t; STATE.projects[projectId].taskIds.unshift(id);
+    pushAudit({projectId,entityType:'task',entityId:id,action:'task_created',byUserId:STATE.session.userId,meta:{title:t.title}});
     if(patch.assigneeId){
       STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${t.title}`,read:false,ts:Date.now()});
+      pushAudit({projectId,entityType:'task',entityId:id,action:'task_assigned',byUserId:STATE.session.userId,meta:{title:t.title,assigneeName:userName(patch.assigneeId)}});
     }
-    save(STATE); closeModal(); renderBoard(); renderList();
+    save(STATE); closeModal(); renderBoard(); renderList(); renderActivity();
     if(ROUTE.current==='profile'){ renderProfile(STATE.users[STATE.session.userId]); }
   }
 }
@@ -1248,9 +1380,7 @@ function showModal(){ $('#modal').classList.remove('hidden'); }
 function closeModal(){ $('#modal').classList.add('hidden'); }
 $('#modal-x').onclick=closeModal;
 
-/* ==========================
-   QUICK SEARCH (Ctrl+K)
-   ========================== */
+/* QUICK SEARCH (Ctrl+K) */
 function openSearch(){
   $('#search-modal').classList.remove('hidden');
   $('#sm-input').value = ($('#global-search').value||'');
@@ -1282,9 +1412,7 @@ document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape'){ closeSearch(); closeModal(); }
 });
 
-/* ==========================
-   NAV BINDINGS & INIT
-   ========================== */
+/* NAV BINDINGS & INIT */
 $$('.sidebar .nav button').forEach(b=> b.onclick=()=> goto(b.dataset.route));
 $$('.bottomnav button').forEach(b=> b.onclick=()=> goto(b.dataset.route));
 
@@ -1293,4 +1421,3 @@ render();
 </script>
 </body>
 </html>
-
