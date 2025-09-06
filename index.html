@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SynergySphere — MVP (Monochrome Light/Dark)</title>
+<title>SynergySphere — MVP (Mono + Stats + Sorting + Exports + Signals + Profile Progress)</title>
 
 <!-- ===================== 
      CORE STYLES (MONOCHROME)
@@ -138,6 +138,12 @@ textarea{min-height:100px; resize:vertical}
 
 /* Focus rings (accessibility) */
 :focus-visible{outline:2px dashed var(--ink); outline-offset:2px}
+
+/* --- status signal dots --- */
+.signal{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:-1px}
+.sig-red{background:#ef4444}
+.sig-orange{background:#f59e0b}
+.sig-green{background:#22c55e}
 </style>
 </head>
 <body>
@@ -212,6 +218,26 @@ textarea{min-height:100px; resize:vertical}
             <button id="new-project" class="btn primary">＋ New Project</button>
           </div>
         </div>
+
+        <!-- STATS TILES -->
+        <div id="dash-stats" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); margin-bottom:10px"></div>
+
+        <!-- FILTERS + SORT -->
+        <div class="row" style="gap:8px; margin-bottom:8px">
+          <select id="project-status-filter" class="input" style="width:200px">
+            <option value="">All projects</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select id="project-sort" class="input" style="width:220px">
+            <option value="name">Sort: Name A–Z</option>
+            <option value="statusCompleted">Sort: Status (Completed→Active)</option>
+            <option value="statusActive">Sort: Status (Active→Completed)</option>
+            <option value="progressAsc">Sort: Progress ↑</option>
+            <option value="progressDesc">Sort: Progress ↓</option>
+          </select>
+        </div>
+
         <div id="project-cards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))"></div>
 
         <!-- Upcoming timeline -->
@@ -232,18 +258,21 @@ textarea{min-height:100px; resize:vertical}
             <h3 id="prj-name" class="h"></h3>
             <button id="btn-rename-project" class="btn">✎ Rename</button>
           </div>
-            <div class="row">
-              <select id="board-filter" class="input" style="width:200px"></select>
-              <select id="prio-filter" class="input" style="width:160px">
-                <option value="">All priorities</option>
-                <option value="HIGH">High</option>
-                <option value="MED">Medium</option>
-                <option value="LOW">Low</option>
-              </select>
-              <input id="task-search" class="input" style="width:220px" placeholder="Find task…" />
-              <button id="btn-invite" class="btn">＋ Invite</button>
-              <button id="btn-new-task" class="btn primary">＋ New Task</button>
-            </div>
+          <div class="row" style="gap:8px; flex-wrap:wrap">
+            <select id="board-filter" class="input" style="width:200px"></select>
+            <select id="prio-filter" class="input" style="width:160px">
+              <option value="">All priorities</option>
+              <option value="HIGH">High</option>
+              <option value="MED">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+            <input id="task-search" class="input" style="width:220px" placeholder="Find task…" />
+            <button id="btn-invite" class="btn">＋ Invite</button>
+            <button id="btn-new-task" class="btn primary">＋ New Task</button>
+            <!-- NEW: exports -->
+            <button id="btn-export-tasks" class="btn">⬇️ Export Tasks (CSV)</button>
+            <button id="btn-save-project" class="btn">⬇️ Save Project (JSON)</button>
+          </div>
         </div>
 
         <div class="row" style="gap:8px; margin-bottom:10px">
@@ -330,6 +359,41 @@ textarea{min-height:100px; resize:vertical}
 
           <div class="hr"></div>
 
+          <!-- === Profile: Details + Work Progress === -->
+          <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:12px">
+            <!-- Personal info -->
+            <div class="card">
+              <h4 class="h">Personal Info</h4>
+              <div style="height:8px"></div>
+              <label class="small muted">Name</label>
+              <input id="pf-name" class="input" placeholder="Your full name" />
+              <div style="height:8px"></div>
+
+              <label class="small muted">Email</label>
+              <input id="pf-email" class="input" placeholder="you@company.com" />
+              <div style="height:8px"></div>
+
+              <label class="small muted">Degree</label>
+              <input id="pf-degree" class="input" placeholder="e.g., B.Tech CSE" />
+              <div style="height:8px"></div>
+
+              <label class="small muted">Domain Expertise</label>
+              <input id="pf-domain" class="input" placeholder="e.g., Frontend, ML, DevOps" />
+              <div class="row" style="justify-content:flex-end; margin-top:12px">
+                <button id="pf-save" class="btn primary">Save Profile</button>
+              </div>
+            </div>
+
+            <!-- Work progress -->
+            <div class="card">
+              <h4 class="h">Work Progress</h4>
+              <div class="small muted">Percent of tasks assigned to you that are completed</div>
+              <div style="height:10px"></div>
+              <canvas id="pf-chart" width="360" height="220" style="width:100%; max-width:420px; height:auto;"></canvas>
+              <div id="pf-chart-meta" class="small muted" style="margin-top:8px"></div>
+            </div>
+          </div>
+
           <!-- EXPORT / IMPORT -->
           <div class="row" style="gap:8px; flex-wrap:wrap">
             <button id="btn-export" class="btn">⬇️ Export Data (JSON)</button>
@@ -377,16 +441,73 @@ const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelec
 const uid=()=>Math.random().toString(36).slice(2,10);
 const todayISO=()=>new Date().toISOString().slice(0,10);
 const fmt=d=>d?new Date(d).toLocaleDateString():"—";
-const LS='synergy_mono_v1';
+const LS='synergy_mono_v3';
 function load(){ try{return JSON.parse(localStorage.getItem(LS)||"{}");}catch{return{}} }
 function save(s){ localStorage.setItem(LS, JSON.stringify(s)); }
 function initials(n){return (n||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()}
 function daysBetween(a,b){ return Math.floor((new Date(a).setHours(0,0,0,0)-new Date(b).setHours(0,0,0,0))/86400000); }
 
+/* status dot */
+function statusSignal(status){
+  switch(status){
+    case 'DONE':        return '<span class="signal sig-green" title="Completed"></span>';
+    case 'IN_PROGRESS': return '<span class="signal sig-orange" title="In Progress"></span>';
+    default:            return '<span class="signal sig-red" title="To-Do"></span>';
+  }
+}
+
+/* --- user progress (assigned tasks) --- */
+function userProgress(userId){
+  const tasks = Object.values(STATE.tasks).filter(t => t.assigneeId === userId);
+  const total = tasks.length;
+  const done  = tasks.filter(t => t.status === 'DONE').length;
+  const pct   = total ? Math.round((done/total)*100) : 0;
+  return { total, done, pct };
+}
+
+/* --- simple donut chart (canvas) --- */
+function drawDonut(canvas, pct){
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  // scale canvas to be crisp
+  const cssW = canvas.clientWidth || canvas.width;
+  const cssH = canvas.clientHeight || canvas.height || 220;
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  const w = canvas.width, h = canvas.height;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  const cx = (w/dpr)/2, cy = (h/dpr)/2, r = Math.min(cx,cy) - 20;
+  const styles = getComputedStyle(document.documentElement);
+  const track = styles.getPropertyValue('--line').trim() || '#333';
+  const ink   = styles.getPropertyValue('--ink').trim()  || '#fff';
+  const color = pct>=80 ? '#22c55e' : (pct>=50 ? '#f59e0b' : '#ef4444');
+
+  ctx.clearRect(0,0,w,h);
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 18;
+
+  // track
+  ctx.strokeStyle = track;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+
+  // arc
+  const ang = (Math.PI*2)*(pct/100);
+  ctx.strokeStyle = color;
+  ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2, -Math.PI/2 + ang, false); ctx.stroke();
+
+  // label
+  ctx.fillStyle = ink;
+  ctx.font = 'bold 28px ui-sans-serif, system-ui, -apple-system';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(pct + '%', cx, cy);
+}
+
 function seed(){
   const now=new Date().toISOString();
-  const me={id:uid(),name:'Alex Rivera',email:'alex@example.com'};
-  const u2={id:uid(),name:'Sam Patel',email:'sam@example.com'};
+  const me={id:uid(),name:'Alex Rivera',email:'alex@example.com',degree:'',expertise:''};
+  const u2={id:uid(),name:'Sam Patel',email:'sam@example.com',degree:'',expertise:''};
   const prj={id:uid(),name:'Website Revamp',ownerId:me.id,memberIds:[me.id,u2.id],taskIds:[],createdAt:now};
   const t1={id:uid(),projectId:prj.id,title:'Define MVP scope',description:'Outline must-have features.',assigneeId:me.id,dueDate:todayISO(),status:'TO_DO',priority:'HIGH',subtasks:[{id:uid(),text:'Collect inputs',done:true},{id:uid(),text:'Draft list',done:false}],attachments:[],createdAt:now,updatedAt:now};
   const t2={id:uid(),projectId:prj.id,title:'Set up CI pipeline',description:'Basic build + test',assigneeId:u2.id,dueDate:todayISO(),status:'IN_PROGRESS',priority:'MED',subtasks:[{id:uid(),text:'Github Actions',done:true}],attachments:[],createdAt:now,updatedAt:now};
@@ -421,7 +542,6 @@ function applyTheme(){
   document.documentElement.style.colorScheme = (STATE.theme==='light'?'light':'dark');
 }
 $('#btn-theme').onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light'); save(STATE); applyTheme(); };
-/* Profile toggle uses same handler */
 const bindProfileTheme=()=>{ const b=$('#pref-theme'); if(b){ b.onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light'); save(STATE); applyTheme(); }; } };
 applyTheme();
 
@@ -432,7 +552,39 @@ function showAuth(){ $('#auth').classList.remove('hidden'); $('#app').classList.
 function showApp(){ $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#bottom').classList.remove('hidden'); }
 
 $('#btn-login').onclick=()=>{ const email=$('#auth-email').value.trim().toLowerCase(); const user=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email); if(!user){alert('No such user. Try Sign up or alex@example.com'); return} setState({session:{userId:user.id}}) };
-$('#btn-signup').onclick=()=>{ const email=$('#auth-email').value.trim(); const name=$('#auth-name').value.trim()||email.split('@')[0]; if(!email) return alert('Email required'); const exists=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email.toLowerCase()); if(exists){alert('User exists, try login'); return} const u={id:uid(),name,email}; setState({users:{...STATE.users,[u.id]:u},session:{userId:u.id}}) };
+$('#btn-signup').onclick=()=>{ const email=$('#auth-email').value.trim(); const name=$('#auth-name').value.trim()||email.split('@')[0]; if(!email) return alert('Email required'); const exists=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email.toLowerCase()); if(exists){alert('User exists, try login'); return} const u={id:uid(),name,email,degree:'',expertise:''}; setState({users:{...STATE.users,[u.id]:u},session:{userId:u.id}}) };
+
+/* ==========================
+   DASHBOARD HELPERS (stats/sort)
+   ========================== */
+function stats(p){ const ts=p.taskIds.map(id=>STATE.tasks[id]).filter(Boolean); const total=ts.length; const done=ts.filter(t=>t.status==='DONE').length; const pct=total?Math.round(done/total*100):0; return {total,done,pct} }
+function projectProgress(p){ return stats(p); }
+function isProjectCompleted(p){ const s=projectProgress(p); return s.total>0 && s.done===s.total; }
+function renderDashStats(projects){
+  const total = projects.length;
+  const completed = projects.filter(isProjectCompleted).length;
+  const active = total - completed;
+  const avgPct = total ? Math.round(projects.reduce((a,p)=>a+projectProgress(p).pct,0)/total) : 0;
+  const box = $('#dash-stats'); if(!box) return;
+  box.innerHTML = `
+    <div class="card"><div class="small muted">Total Projects</div><div style="font-size:24px;font-weight:800">${total}</div></div>
+    <div class="card"><div class="small muted">Active</div><div style="font-size:24px;font-weight:800">${active}</div></div>
+    <div class="card"><div class="small muted">Completed</div><div style="font-size:24px;font-weight:800">${completed}</div></div>
+    <div class="card"><div class="small muted">Average Progress</div>
+      <div class="row" style="gap:10px">
+        <div style="font-size:24px;font-weight:800">${avgPct}%</div>
+        <div class="progress" style="flex:1;max-width:220px"><b style="width:${avgPct}%"></b></div>
+      </div>
+    </div>`;
+}
+function sortProjects(list, mode){
+  const byPct = p => projectProgress(p).pct;
+  if(mode === 'progressAsc')  return list.slice().sort((a,b)=> byPct(a)-byPct(b));
+  if(mode === 'progressDesc') return list.slice().sort((a,b)=> byPct(b)-byPct(a));
+  if(mode === 'statusCompleted') return list.slice().sort((a,b)=> (isProjectCompleted(b)-isProjectCompleted(a)) || a.name.localeCompare(b.name));
+  if(mode === 'statusActive')    return list.slice().sort((a,b)=> (isProjectCompleted(a)-isProjectCompleted(b)) || a.name.localeCompare(b.name));
+  return list.slice().sort((a,b)=> a.name.localeCompare(b.name));
+}
 
 /* ==========================
    CORE RENDER
@@ -469,30 +621,47 @@ function render(){
 /* ==========================
    DASHBOARD + TIMELINE
    ========================== */
-function stats(p){ const ts=p.taskIds.map(id=>STATE.tasks[id]).filter(Boolean); const total=ts.length; const done=ts.filter(t=>t.status==='DONE').length; const pct=total?Math.round(done/total*100):0; return {total,done,pct} }
-
 function renderDashboard(me){
   const container=$('#project-cards'); container.innerHTML='';
   const keyword=$('#project-search').value?.toLowerCase()||'';
-  const list=Object.values(STATE.projects).filter(p=>p.memberIds.includes(me.id) && (!keyword || p.name.toLowerCase().includes(keyword)));
-  if(!list.length){ container.innerHTML = `<div class="card muted">No projects yet. Click “New Project”.</div>`; }
-  list.forEach(p=>{
-    const s=stats(p);
-    const el=document.createElement('div'); el.className='card';
-    el.innerHTML=`
-      <div class="row" style="justify-content:space-between">
-        <div class="row"><b>${p.name}</b></div>
-        <span class="pill">${s.pct}%</span>
-      </div>
-      <div class="progress"><b style="width:${s.pct}%"></b></div>
-      <div class="small muted" style="margin-top:6px">${s.done} / ${s.total} tasks done</div>
-      <div class="row" style="margin-top:8px">
-        ${(p.memberIds||[]).slice(0,4).map(id=>{const u=STATE.users[id]; return `<div class="avatar" title="${u.name}">${initials(u.name)}</div>`}).join('')}
-        <span class="right"></span>
-        <button class="btn" onclick="gotoProject('${p.id}')">Open</button>
-      </div>`;
-    container.appendChild(el);
-  });
+  let list = Object.values(STATE.projects).filter(
+    p => p.memberIds.includes(me.id) && (!keyword || p.name.toLowerCase().includes(keyword))
+  );
+
+  // apply status filter
+  const sf = ($('#project-status-filter')?.value)||'';
+  if(sf === 'active')    list = list.filter(p => !isProjectCompleted(p));
+  if(sf === 'completed') list = list.filter(isProjectCompleted);
+
+  // sort
+  const sortMode = ($('#project-sort')?.value) || 'name';
+  list = sortProjects(list, sortMode);
+
+  // stats tiles over displayed set
+  renderDashStats(list);
+
+  // empty state + cards
+  if(!list.length){
+    container.innerHTML = `<div class="card muted">No projects match.</div>`;
+  } else {
+    list.forEach(p=>{
+      const s=stats(p);
+      const el=document.createElement('div'); el.className='card';
+      el.innerHTML=`
+        <div class="row" style="justify-content:space-between">
+          <div class="row"><b>${p.name}</b></div>
+          <span class="pill">${s.pct}%</span>
+        </div>
+        <div class="progress"><b style="width:${s.pct}%"></b></div>
+        <div class="small muted" style="margin-top:6px">${s.done} / ${s.total} tasks done ${isProjectCompleted(p)?'• Completed':''}</div>
+        <div class="row" style="margin-top:8px">
+          ${(p.memberIds||[]).slice(0,4).map(id=>{const u=STATE.users[id]; return `<div class="avatar" title="${u.name}">${initials(u.name)}</div>`}).join('')}
+          <span class="right"></span>
+          <button class="btn" onclick="gotoProject('${p.id}')">Open</button>
+        </div>`;
+      container.appendChild(el);
+    });
+  }
 
   // Timeline: upcoming or overdue tasks across all projects
   const allTasks=Object.values(STATE.tasks);
@@ -514,6 +683,10 @@ function renderDashboard(me){
       </div>
     </div>`;
   }).join('') || `<div class="small muted">All clear. No upcoming items.</div>`;
+
+  // ensure bindings exist
+  const psf = $('#project-status-filter'); if(psf) psf.onchange=()=>render();
+  const pso = $('#project-sort'); if(pso) pso.onchange=()=>render();
 }
 $('#new-project').onclick=()=>openModalProject();
 $('#project-search').oninput=()=>render();
@@ -540,6 +713,10 @@ function renderProject(me){
   $('#tab-list').classList.toggle('hidden', ROUTE.tab!=='list');
   $('#tab-discuss').classList.toggle('hidden', ROUTE.tab!=='discuss');
   $('#tab-members').classList.toggle('hidden', ROUTE.tab!=='members');
+
+  // bind export buttons
+  const exCSV = $('#btn-export-tasks'); if(exCSV) exCSV.onclick = () => exportTasksCSV(p.id);
+  const exPRJ = $('#btn-save-project'); if(exPRJ) exPRJ.onclick = () => saveProjectJSON(p.id);
 
   renderBoard(); renderList(); renderDiscuss(); renderMembers();
 }
@@ -584,7 +761,7 @@ function renderTaskCard(t){
       <div class="title">${t.title}</div>
       <div class="row small" style="gap:6px">
         ${prioTag(t.priority||'LOW')}
-        <span class="tag small">${label}</span>
+        <span class="tag small">${statusSignal(t.status)}${label}</span>
       </div>
     </div>
     <div class="small muted">${t.description||""}</div>
@@ -648,7 +825,7 @@ function renderList(){
       <td>${u?`<div class="row"><div class="avatar" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div>${u.name}</div>`:`<span class="small muted">Unassigned</span>`}</td>
       <td>${dueBadge(t)}</td>
       <td>${prioTag(t.priority||'LOW')}</td>
-      <td><span class="tag small">${label}</span></td>
+      <td><span class="tag small">${statusSignal(t.status)}${label}</span></td>
       <td style="text-align:right">
         <button class="btn" onclick="openModalTask('${t.projectId}','${t.id}')">Edit</button>
         <button class="btn danger" onclick="delTask('${t.id}')">Delete</button>
@@ -741,11 +918,37 @@ function renderProfile(me){
   $('#me-email').textContent=me.email;
   if ($('#pref-due')) $('#pref-due').checked = !!STATE.prefs?.notifyDue;
   bindProfileTheme();
+
+  // --- populate new fields ---
+  if ($('#pf-name'))   $('#pf-name').value   = me.name || '';
+  if ($('#pf-email'))  $('#pf-email').value  = me.email || '';
+  if ($('#pf-degree')) $('#pf-degree').value = me.degree || '';
+  if ($('#pf-domain')) $('#pf-domain').value = me.expertise || '';
+
+  // save handler
+  const saveBtn = $('#pf-save');
+  if (saveBtn){
+    saveBtn.onclick = () => {
+      const u = STATE.users[STATE.session.userId];
+      u.name      = ($('#pf-name').value   || u.name).trim();
+      u.email     = ($('#pf-email').value  || u.email).trim();
+      u.degree    = ($('#pf-degree').value || '').trim();
+      u.expertise = ($('#pf-domain').value || '').trim();
+      save(STATE);
+      renderProfile(u); // refresh header + chart
+      alert('Profile saved');
+    };
+  }
+
+  // progress chart
+  const prog = userProgress(me.id);
+  drawDonut($('#pf-chart'), prog.pct);
+  if($('#pf-chart-meta')) $('#pf-chart-meta').textContent = `${prog.done} of ${prog.total} assigned tasks completed (${prog.pct}%)`;
 }
 $('#btn-logout').onclick=()=> setState({ session:null });
 $('#pref-due').onchange=()=>{ STATE.prefs.notifyDue = $('#pref-due').checked; save(STATE); };
 
-/* Export / Import */
+/* Workspace Export / Import */
 $('#btn-export').onclick=()=>{
   const data = JSON.stringify(STATE, null, 2);
   const blob = new Blob([data], {type:'application/json'});
@@ -789,6 +992,52 @@ function dueSweep(){
   save(STATE);
 }
 setInterval(dueSweep, 60*60*1000);
+
+/* ==========================
+   PROJECT EXPORTS (CSV / JSON)
+   ========================== */
+function csvEscape(v){
+  if(v==null) return '';
+  const s = String(v).replace(/"/g,'""');
+  return /[",\n]/.test(s) ? `"${s}"` : s;
+}
+function exportTasksCSV(projectId){
+  const p = STATE.projects[projectId];
+  if(!p) return;
+  const rows = [
+    ['Task ID','Project','Title','Description','Assignee Name','Assignee Email','Due Date','Status','Priority','Checklist Done','Checklist Total','Attachments','Created At','Updated At']
+  ];
+  (p.taskIds||[]).map(id=>STATE.tasks[id]).filter(Boolean).forEach(t=>{
+    const u = t.assigneeId ? STATE.users[t.assigneeId] : null;
+    const subs = t.subtasks||[];
+    const done = subs.filter(s=>s.done).length;
+    const atts = (t.attachments||[]).length;
+    rows.push([
+      t.id, p.name, t.title||'', t.description||'',
+      u?u.name:'', u?u.email:'',
+      t.dueDate||'', t.status, t.priority||'',
+      done, subs.length, atts,
+      t.createdAt||'', t.updatedAt||''
+    ]);
+  });
+  const csv = rows.map(r=>r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${p.name.replace(/[^\w\-]+/g,'_')}-tasks.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function saveProjectJSON(projectId){
+  const p = STATE.projects[projectId]; if(!p) return;
+  const members = (p.memberIds||[]).map(id => STATE.users[id]).filter(Boolean);
+  const tasks = (p.taskIds||[]).map(id => STATE.tasks[id]).filter(Boolean);
+  const out = { project: p, members, tasks };
+  const blob = new Blob([JSON.stringify(out,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${p.name.replace(/[^\w\-]+/g,'_')}-details.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
 
 /* ==========================
    ACTIONS / MODALS
@@ -860,7 +1109,7 @@ function inviteMember(projectId){
   const email=$('#inv-email').value.trim(); if(!email) return;
   const name=$('#inv-name').value.trim();
   let user=Object.values(STATE.users).find(u=>u.email.toLowerCase()===email.toLowerCase());
-  if(!user){ user={id:uid(),name:name||email,email}; STATE.users[user.id]=user; }
+  if(!user){ user={id:uid(),name:name||email,email,degree:'',expertise:''}; STATE.users[user.id]=user; }
   const p=STATE.projects[projectId];
   if(!p.memberIds.includes(user.id)) p.memberIds.push(user.id);
   STATE.notifications.push({id:uid(),userId:user.id,projectId,type:'INVITE',body:`You were added to project “${p.name}”`,read:false,ts:Date.now()});
@@ -981,6 +1230,7 @@ function saveTask(projectId,taskId){
       STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${updated.title}`,read:false,ts:Date.now()});
     }
     STATE.tasks[taskId]=updated; save(STATE); closeModal(); renderBoard(); renderList();
+    if(ROUTE.current==='profile'){ renderProfile(STATE.users[STATE.session.userId]); }
   }else{
     const id=uid(); const now=new Date().toISOString();
     const t={id,projectId,createdAt:now,updatedAt:now,status:'TO_DO',priority:'MED',subtasks:[],attachments:[],...patch};
@@ -989,6 +1239,7 @@ function saveTask(projectId,taskId){
       STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${t.title}`,read:false,ts:Date.now()});
     }
     save(STATE); closeModal(); renderBoard(); renderList();
+    if(ROUTE.current==='profile'){ renderProfile(STATE.users[STATE.session.userId]); }
   }
 }
 
@@ -1042,3 +1293,4 @@ render();
 </script>
 </body>
 </html>
+
