@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SynergySphere — MVP (Monochrome Light/Dark)</title>
+
+<!-- ===================== 
+     CORE STYLES (MONOCHROME)
+     ===================== -->
+<style>
+:root{
+  /* DARK (default) */
+  --bg:#000;          /* page bg */
+  --bg2:#0b0b0b;      /* card/bg surfaces */
+  --ink:#fff;         /* text */
+  --muted:#bfbfbf;    /* secondary text */
+  --line:#1f1f1f;     /* borders */
+  --brand:#fff;       /* action/primary = white in dark */
+  --pill:#101010;     /* chip bg */
+  --radius:18px;
+  --shadow-soft: 0 10px 30px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font:15px/1.4 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; color:var(--ink);
+  background: var(--bg);
+}
+button{cursor:pointer}
+a{color:var(--ink); text-decoration: underline}
+.hidden{display:none !important}
+.container{min-height:100dvh; display:flex}
+
+/* LIGHT THEME */
+.light{
+  --bg:#fff;
+  --bg2:#ffffff;
+  --ink:#000;
+  --muted:#5f5f5f;
+  --line:#e7e7e7;
+  --pill:#f6f6f6;
+  --brand:#000; /* action/primary = black in light */
+  --shadow-soft: 0 10px 30px rgba(0,0,0,.12);
+}
+
+/* LAYOUT */
+.sidebar{display:none; width:280px; padding:18px; border-right:1px solid var(--line); background:var(--bg2); position:sticky; top:0; height:100dvh}
+.brand{display:flex; gap:12px; align-items:center; margin-bottom:18px}
+.badge{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--ink); color:var(--bg); font-weight:800; box-shadow: var(--shadow-soft)}
+.brand .title{font-weight:700}
+.brand .sub{font-size:12px;color:var(--muted)}
+.nav button{width:100%; text-align:left; padding:12px 14px; border:1px solid transparent; background:transparent; border-radius:14px; color:var(--muted)}
+.nav button:hover{background:#111; color:var(--ink)}
+.light .nav button:hover{background:#f4f4f4}
+.nav button.active{background:#151515; border-color:var(--line); color:#e6e6e6}
+.light .nav button.active{background:#f0f0f0; color:#111}
+
+main{flex:1; display:flex; flex-direction:column}
+.topbar{position:sticky; top:0; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); background:var(--bg2)}
+.topbar .left{display:flex; align-items:center; gap:12px}
+.pill{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; font-size:12px; border:1px solid var(--line); background:var(--pill); color:var(--muted); border-radius:999px}
+.input, select, textarea{width:100%; padding:12px 14px; border-radius:14px; border:1px solid var(--line); outline:none; background:transparent; color:var(--ink)}
+textarea{min-height:100px; resize:vertical}
+
+.content{padding:18px; padding-bottom:96px}
+.grid{display:grid; gap:16px}
+.card{background:var(--bg2); border:1px solid var(--line); border-radius:var(--radius); padding:16px; box-shadow: var(--shadow-soft)}
+.card:hover{border-color:var(--line)}
+.h{margin:0;font-weight:700}
+.muted{color:var(--muted)}
+.row{display:flex; align-items:center; gap:10px}
+.right{margin-left:auto}
+
+.btn{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:14px; border:1px solid var(--line); background:transparent; color:var(--ink)}
+.btn:hover{background:#141414}
+.light .btn:hover{background:#f4f4f4}
+.btn.primary{border-color:var(--brand); background:var(--brand); color:var(--bg)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--ink); border-color:#4d4d4d}
+.btn.full{width:100%; justify-content:center}
+
+.progress{height:10px;border-radius:999px;background:#121212; overflow:hidden}
+.light .progress{background:#eee}
+.progress > b{height:100%;display:block;background: var(--ink)}
+
+.small{font-size:12px}
+.hr{height:1px;background:var(--line);margin:8px 0}
+.kv{display:grid; grid-template-columns: 120px 1fr; gap:8px; align-items:center}
+
+.avatar{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;background:var(--ink); color:var(--bg); font-weight:700; font-size:12px; border:1px solid var(--line)}
+
+/* Kanban */
+.kanban{display:grid; gap:16px}
+@media (min-width: 980px){ .kanban{grid-template-columns:repeat(3,minmax(0,1fr))} .sidebar{display:block} .content{padding-bottom:24px} .bottomnav{display:none}}
+.column .head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.task{background:var(--bg2); border:1px solid var(--line); border-radius:14px; padding:12px}
+.task .title{font-weight:600}
+.task .meta{display:flex; align-items:center; justify-content:space-between; margin-top:6px; color:var(--muted); font-size:13px}
+.dragging{opacity:.6; transform:scale(.98)}
+.dropzone{min-height:10px; padding:4px; border:1px dashed transparent; border-radius:12px}
+.dropzone.active{border-color:#555; background: transparent}
+
+/* Table */
+.table{width:100%; border-collapse:collapse}
+.table th,.table td{text-align:left; padding:10px}
+.table tr{border-top:1px solid var(--line)}
+
+/* Bottom nav (mobile) */
+.bottomnav{position:fixed; inset-inline:0; bottom:0; z-index:8; display:flex; border-top:1px solid var(--line); background:var(--bg2)}
+.bottomnav button{flex:1; padding:10px 0; color:#a3a3a3; background:transparent; border:0}
+.bottomnav button.active{color:var(--ink)}
+.badge{font-size:11px; background:#222; color:#fff; border-radius:999px; padding:0 6px}
+.light .badge{background:#000}
+
+/* Auth */
+.authwrap{min-height:100dvh; display:grid; place-items:center; padding:18px}
+.auth{width:min(460px,96vw); background:var(--bg2); border:1px solid var(--line); border-radius:22px; padding:20px; box-shadow: var(--shadow-soft)}
+
+/* Modal */
+.modal{position:fixed; inset:0; z-index:30; display:grid; place-items:center; padding:18px}
+.modal::before{content:""; position:absolute; inset:0; background:rgba(0,0,0,.5); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px)}
+.modal .box{position:relative; width:min(720px,96vw); border-radius:20px; border:1px solid var(--line); background:var(--bg2); box-shadow: var(--shadow-soft); padding:16px}
+.modal .close{position:absolute; right:12px; top:8px; border:0; background:transparent; color:var(--muted); font-size:22px}
+.modal.hidden{display:none !important}
+
+/* Due states (greys) */
+.due-ok{color:#a9a9a9}
+.due-soon{color:#cfcfcf}
+.due-over{color:#e6e6e6}
+
+/* Status & priority tags — outlined */
+.tag{background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:2px 8px}
+.tag.todo,.tag.doing,.tag.done,.tag.low,.tag.med,.tag.high{background:transparent}
+
+/* Pills */
+.pill{background:transparent}
+
+/* Focus rings (accessibility) */
+:focus-visible{outline:2px dashed var(--ink); outline-offset:2px}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<section id="auth" class="authwrap hidden">
+  <div class="auth">
+    <div class="brand"><div class="badge">S</div><div>
+      <div class="title">SynergySphere</div>
+      <div class="sub">Collaborate. Align. Deliver.</div>
+    </div></div>
+
+    <div class="small muted" style="margin:6px 0 10px">Use any email to sign up or try <b>alex@example.com</b> to log in.</div>
+    <label class="small muted">Name (Sign up)</label>
+    <input id="auth-name" class="input" placeholder="Your name" />
+    <div style="height:8px"></div>
+
+    <label class="small muted">Email</label>
+    <input id="auth-email" class="input" placeholder="you@company.com" />
+    <div style="height:8px"></div>
+
+    <label class="small muted">Password</label>
+    <input id="auth-pass" type="password" class="input" placeholder="••••••••" />
+    <div class="row" style="justify-content:space-between; margin:6px 0 12px">
+      <span class="small muted"></span>
+      <a href="#" onclick="alert('Demo-only: reset is mocked.')">Forgot password?</a>
+    </div>
+
+    <div class="row">
+      <button id="btn-login" class="btn primary full">Log in</button>
+      <button id="btn-signup" class="btn full">Sign up</button>
+    </div>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="container hidden">
+  <aside class="sidebar">
+    <div class="brand"><div class="badge">S</div><div>
+      <div class="title">SynergySphere</div>
+      <div class="sub">Command Center</div>
+    </div></div>
+
+    <div class="nav">
+      <button data-route="dashboard" class="active">Projects</button>
+      <button data-route="notifications">Notifications <span id="sb-badge" class="badge hidden">0</span></button>
+      <button data-route="profile">Profile & Settings</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="left">
+        <div class="badge" style="width:34px;height:34px;border-radius:10px">S</div>
+        <span id="top-title" style="font-weight:700">Projects</span>
+        <span class="pill">MVP</span>
+      </div>
+      <div class="row">
+        <input id="global-search" class="input" style="width:min(42vw,420px)" placeholder="Quick search (Ctrl + K) — tasks, messages…" />
+        <button id="btn-theme" class="btn">🌗 Theme</button>
+        <button id="btn-ping" class="btn">🔔</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px">
+          <h3 class="h">Your Projects</h3>
+          <div class="row">
+            <input id="project-search" class="input" style="width:220px" placeholder="Search projects..." />
+            <button id="new-project" class="btn primary">＋ New Project</button>
+          </div>
+        </div>
+        <div id="project-cards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))"></div>
+
+        <!-- Upcoming timeline -->
+        <div class="card" style="margin-top:8px">
+          <div class="row" style="justify-content:space-between">
+            <b>Upcoming & Overdue</b>
+            <div class="small muted">Auto-sorted by due date</div>
+          </div>
+          <div id="timeline" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin-top:10px"></div>
+        </div>
+      </section>
+
+      <!-- PROJECT -->
+      <section id="view-project" class="hidden">
+        <div class="row" style="justify-content:space-between; margin-bottom:12px">
+          <div class="row" style="gap:8px">
+            <button id="btn-back-home" class="btn">⟵ Back</button>
+            <h3 id="prj-name" class="h"></h3>
+            <button id="btn-rename-project" class="btn">✎ Rename</button>
+          </div>
+            <div class="row">
+              <select id="board-filter" class="input" style="width:200px"></select>
+              <select id="prio-filter" class="input" style="width:160px">
+                <option value="">All priorities</option>
+                <option value="HIGH">High</option>
+                <option value="MED">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+              <input id="task-search" class="input" style="width:220px" placeholder="Find task…" />
+              <button id="btn-invite" class="btn">＋ Invite</button>
+              <button id="btn-new-task" class="btn primary">＋ New Task</button>
+            </div>
+        </div>
+
+        <div class="row" style="gap:8px; margin-bottom:10px">
+          <button class="btn ghost" data-tab="board">Board</button>
+          <button class="btn ghost" data-tab="list">List</button>
+          <button class="btn ghost" data-tab="discuss">Discuss</button>
+          <button class="btn ghost" data-tab="members">Members</button>
+        </div>
+
+        <div id="tab-board">
+          <div class="kanban">
+            <div class="card column" data-status="TO_DO">
+              <div class="head"><b>To-Do</b> <span id="count-todo" class="pill">0</span></div>
+              <div class="dropzone" id="kan-todo"></div>
+            </div>
+            <div class="card column" data-status="IN_PROGRESS">
+              <div class="head"><b>In Progress</b> <span id="count-inprog" class="pill">0</span></div>
+              <div class="dropzone" id="kan-inprog"></div>
+            </div>
+            <div class="card column" data-status="DONE">
+              <div class="head"><b>Done</b> <span id="count-done" class="pill">0</span></div>
+              <div class="dropzone" id="kan-done"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-list" class="hidden">
+          <div class="card" style="overflow:auto">
+            <table class="table">
+              <thead class="muted">
+                <tr><th>Task</th><th>Assignee</th><th>Due</th><th>Priority</th><th>Status</th><th style="text-align:right">Actions</th></tr>
+              </thead>
+              <tbody id="list-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="tab-discuss" class="hidden">
+          <div class="grid" style="grid-template-columns:minmax(0,1fr); gap:16px">
+            <div class="card">
+              <div class="row"><h4 class="h">Post a message</h4></div>
+              <textarea id="msg-text" class="input" placeholder="Share an update or ask a question"></textarea>
+              <div class="row" style="justify-content:flex-end"><button id="msg-post" class="btn primary">Post</button></div>
+            </div>
+            <div id="msg-list" class="grid" style="grid-template-columns:minmax(0,1fr); gap:16px"></div>
+          </div>
+        </div>
+
+        <div id="tab-members" class="hidden">
+          <div id="member-cards" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px"></div>
+        </div>
+      </section>
+
+      <!-- NOTIFICATIONS -->
+      <section id="view-notifications" class="hidden">
+        <h3 class="h">Notifications</h3>
+        <div id="notif-list" class="grid" style="grid-template-columns:minmax(0,1fr); gap:12px"></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section id="view-profile" class="hidden">
+        <div class="card">
+          <div class="row">
+            <div id="me-avatar" class="avatar" style="width:46px;height:46px;font-size:16px"></div>
+            <div>
+              <div id="me-name" style="font-weight:700"></div>
+              <div id="me-email" class="small muted"></div>
+            </div>
+            <span class="right"></span>
+            <button id="btn-logout" class="btn danger">⎋ Log out</button>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="kv small">
+            <div class="muted">Due alerts</div>
+            <div><label><input id="pref-due" type="checkbox"> Notify me about tasks due today/overdue</label></div>
+
+            <div class="muted">Theme</div>
+            <div class="row" style="gap:8px; flex-wrap:wrap">
+              <button id="pref-theme" class="btn">Toggle Light/Dark</button>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <!-- EXPORT / IMPORT -->
+          <div class="row" style="gap:8px; flex-wrap:wrap">
+            <button id="btn-export" class="btn">⬇️ Export Data (JSON)</button>
+            <label class="btn" for="file-import">⬆️ Import Data</label>
+            <input id="file-import" type="file" accept="application/json" class="hidden" />
+          </div>
+          <div class="small muted">Export downloads a snapshot of your workspace. Import replaces current data.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Bottom nav (mobile) -->
+<div id="bottom" class="bottomnav hidden">
+  <button data-route="dashboard" class="active">Projects</button>
+  <button data-route="notifications">Alerts <span id="bt-badge" class="badge hidden">0</span></button>
+  <button data-route="profile">Profile</button>
+</div>
+
+<!-- MODALS -->
+<div id="modal" class="modal hidden">
+  <div class="box card">
+    <button id="modal-x" class="close">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Quick Search Modal (Ctrl+K) -->
+<div id="search-modal" class="modal hidden">
+  <div class="box card" style="width:min(720px,96vw)">
+    <button class="close" id="sm-x">×</button>
+    <h3 class="h">Quick Search</h3>
+    <input id="sm-input" class="input" placeholder="Type to search tasks and messages…" />
+    <div style="height:10px"></div>
+    <div id="sm-results" class="grid" style="grid-template-columns:minmax(0,1fr); gap:8px; max-height:55vh; overflow:auto"></div>
+  </div>
+</div>
+
+<script>
+/* ==========================
+   UTIL & STATE
+   ========================== */
+const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const fmt=d=>d?new Date(d).toLocaleDateString():"—";
+const LS='synergy_mono_v1';
+function load(){ try{return JSON.parse(localStorage.getItem(LS)||"{}");}catch{return{}} }
+function save(s){ localStorage.setItem(LS, JSON.stringify(s)); }
+function initials(n){return (n||'?').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()}
+function daysBetween(a,b){ return Math.floor((new Date(a).setHours(0,0,0,0)-new Date(b).setHours(0,0,0,0))/86400000); }
+
+function seed(){
+  const now=new Date().toISOString();
+  const me={id:uid(),name:'Alex Rivera',email:'alex@example.com'};
+  const u2={id:uid(),name:'Sam Patel',email:'sam@example.com'};
+  const prj={id:uid(),name:'Website Revamp',ownerId:me.id,memberIds:[me.id,u2.id],taskIds:[],createdAt:now};
+  const t1={id:uid(),projectId:prj.id,title:'Define MVP scope',description:'Outline must-have features.',assigneeId:me.id,dueDate:todayISO(),status:'TO_DO',priority:'HIGH',subtasks:[{id:uid(),text:'Collect inputs',done:true},{id:uid(),text:'Draft list',done:false}],attachments:[],createdAt:now,updatedAt:now};
+  const t2={id:uid(),projectId:prj.id,title:'Set up CI pipeline',description:'Basic build + test',assigneeId:u2.id,dueDate:todayISO(),status:'IN_PROGRESS',priority:'MED',subtasks:[{id:uid(),text:'Github Actions',done:true}],attachments:[],createdAt:now,updatedAt:now};
+  const t3={id:uid(),projectId:prj.id,title:'Design mobile layout',description:'Bottom nav + cards',assigneeId:me.id,dueDate:todayISO(),status:'DONE',priority:'LOW',subtasks:[],attachments:[],createdAt:now,updatedAt:now};
+  prj.taskIds=[t1.id,t2.id,t3.id];
+  const m1={id:uid(),authorId:me.id,projectId:prj.id,body:'Kickoff done. Keep updates here.',createdAt:now};
+  const m2={id:uid(),authorId:u2.id,projectId:prj.id,parentId:m1.id,body:'Roger that. CI progress soon.',createdAt:now};
+  const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  return {
+    users:{[me.id]:me,[u2.id]:u2},
+    projects:{[prj.id]:prj},
+    tasks:{[t1.id]:t1,[t2.id]:t2,[t3.id]:t3},
+    messages:{[m1.id]:m1,[m2.id]:m2},
+    notifications:[],
+    session:{userId:me.id},
+    prefs:{notifyDue:true},
+    theme: prefersLight ? 'light' : 'dark',
+    dueNotified:{} /* {taskId:true} */
+  }
+}
+let STATE=(()=>{const s=load(); if(!s.users) return seed(); return s})();
+const ROUTE={current:'dashboard',projectId:null,tab:'board'};
+const setState=p=>{STATE={...STATE,...p}; save(STATE); render()};
+const goto=r=>{ROUTE.current=r; render()};
+const gotoProject=id=>{ROUTE.current='project'; ROUTE.projectId=id; ROUTE.tab='board'; render()};
+
+/* ==========================
+   THEME (light/dark mono)
+   ========================== */
+function applyTheme(){
+  document.documentElement.classList.toggle('light', STATE.theme==='light');
+  document.documentElement.style.colorScheme = (STATE.theme==='light'?'light':'dark');
+}
+$('#btn-theme').onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light'); save(STATE); applyTheme(); };
+/* Profile toggle uses same handler */
+const bindProfileTheme=()=>{ const b=$('#pref-theme'); if(b){ b.onclick=()=>{ STATE.theme = (STATE.theme==='light'?'dark':'light'); save(STATE); applyTheme(); }; } };
+applyTheme();
+
+/* ==========================
+   AUTH
+   ========================== */
+function showAuth(){ $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); $('#bottom').classList.add('hidden'); }
+function showApp(){ $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden'); $('#bottom').classList.remove('hidden'); }
+
+$('#btn-login').onclick=()=>{ const email=$('#auth-email').value.trim().toLowerCase(); const user=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email); if(!user){alert('No such user. Try Sign up or alex@example.com'); return} setState({session:{userId:user.id}}) };
+$('#btn-signup').onclick=()=>{ const email=$('#auth-email').value.trim(); const name=$('#auth-name').value.trim()||email.split('@')[0]; if(!email) return alert('Email required'); const exists=Object.values(STATE.users||{}).find(u=>u.email.toLowerCase()===email.toLowerCase()); if(exists){alert('User exists, try login'); return} const u={id:uid(),name,email}; setState({users:{...STATE.users,[u.id]:u},session:{userId:u.id}}) };
+
+/* ==========================
+   CORE RENDER
+   ========================== */
+function render(){
+  applyTheme();
+  const me=STATE.session?.userId && STATE.users[STATE.session.userId];
+  if(!me){ showAuth(); return }
+  showApp();
+
+  $$('.sidebar .nav button').forEach(b=>b.classList.toggle('active', b.dataset.route===ROUTE.current));
+  $$('.bottomnav button').forEach(b=>b.classList.toggle('active', b.dataset.route===ROUTE.current));
+  $('#top-title').textContent = ROUTE.current==='project' ? 'Project' : ROUTE.current[0].toUpperCase()+ROUTE.current.slice(1);
+
+  const myNotifs=(STATE.notifications||[]).filter(n=>n.userId===me.id && !n.read);
+  const sb=$('#sb-badge'), bt=$('#bt-badge');
+  (myNotifs.length?sb.classList.remove('hidden'):sb.classList.add('hidden'));
+  (myNotifs.length?bt.classList.remove('hidden'):bt.classList.add('hidden'));
+  sb.textContent=myNotifs.length; bt.textContent=myNotifs.length;
+
+  $('#view-dashboard').classList.toggle('hidden', ROUTE.current!=='dashboard');
+  $('#view-project').classList.toggle('hidden', ROUTE.current!=='project');
+  $('#view-notifications').classList.toggle('hidden', ROUTE.current!=='notifications');
+  $('#view-profile').classList.toggle('hidden', ROUTE.current!=='profile');
+
+  if(ROUTE.current==='dashboard') renderDashboard(me);
+  if(ROUTE.current==='project') renderProject(me);
+  if(ROUTE.current==='notifications') renderNotifications(me);
+  if(ROUTE.current==='profile') renderProfile(me);
+
+  dueSweep();
+}
+
+/* ==========================
+   DASHBOARD + TIMELINE
+   ========================== */
+function stats(p){ const ts=p.taskIds.map(id=>STATE.tasks[id]).filter(Boolean); const total=ts.length; const done=ts.filter(t=>t.status==='DONE').length; const pct=total?Math.round(done/total*100):0; return {total,done,pct} }
+
+function renderDashboard(me){
+  const container=$('#project-cards'); container.innerHTML='';
+  const keyword=$('#project-search').value?.toLowerCase()||'';
+  const list=Object.values(STATE.projects).filter(p=>p.memberIds.includes(me.id) && (!keyword || p.name.toLowerCase().includes(keyword)));
+  if(!list.length){ container.innerHTML = `<div class="card muted">No projects yet. Click “New Project”.</div>`; }
+  list.forEach(p=>{
+    const s=stats(p);
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`
+      <div class="row" style="justify-content:space-between">
+        <div class="row"><b>${p.name}</b></div>
+        <span class="pill">${s.pct}%</span>
+      </div>
+      <div class="progress"><b style="width:${s.pct}%"></b></div>
+      <div class="small muted" style="margin-top:6px">${s.done} / ${s.total} tasks done</div>
+      <div class="row" style="margin-top:8px">
+        ${(p.memberIds||[]).slice(0,4).map(id=>{const u=STATE.users[id]; return `<div class="avatar" title="${u.name}">${initials(u.name)}</div>`}).join('')}
+        <span class="right"></span>
+        <button class="btn" onclick="gotoProject('${p.id}')">Open</button>
+      </div>`;
+    container.appendChild(el);
+  });
+
+  // Timeline: upcoming or overdue tasks across all projects
+  const allTasks=Object.values(STATE.tasks);
+  const upcoming=allTasks.filter(t=>t.status!=='DONE' && t.dueDate).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,12);
+  const tl=$('#timeline'); tl.innerHTML = upcoming.map(t=>{
+    const proj=STATE.projects[t.projectId]; const u=t.assigneeId?STATE.users[t.assigneeId]:null;
+    const state = daysBetween(t.dueDate, todayISO());
+    const tag = state>0 ? 'due-over' : (state===0 ? 'due-soon' : 'due-ok');
+    return `<div class="card">
+      <div class="row" style="justify-content:space-between">
+        <b>${t.title}</b>
+        <span class="small ${tag}">${fmt(t.dueDate)}</span>
+      </div>
+      <div class="small muted">${proj?.name||''}</div>
+      <div class="row small" style="margin-top:6px">
+        ${u?`<div class="avatar" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div> ${u.name}`:'<span class="muted">Unassigned</span>'}
+        <span class="right"></span>
+        <button class="btn" onclick="gotoProject('${t.projectId}')">View</button>
+      </div>
+    </div>`;
+  }).join('') || `<div class="small muted">All clear. No upcoming items.</div>`;
+}
+$('#new-project').onclick=()=>openModalProject();
+$('#project-search').oninput=()=>render();
+
+/* ==========================
+   PROJECT
+   ========================== */
+$('#btn-back-home').onclick=()=>goto('dashboard');
+$('#btn-new-task').onclick=()=>openModalTask(ROUTE.projectId);
+$('#btn-invite').onclick=()=>openModalInvite(ROUTE.projectId);
+$('#btn-rename-project').onclick=()=>openModalRenameProject();
+$('#task-search').oninput=()=>{ renderBoard(); renderList(); };
+$('#prio-filter').onchange=()=>{ renderBoard(); renderList(); };
+
+function renderProject(me){
+  const p=STATE.projects[ROUTE.projectId]; if(!p){goto('dashboard'); return}
+  $('#prj-name').textContent=p.name;
+  $$('#view-project [data-tab]').forEach(b=> b.classList.toggle('primary', b.dataset.tab===ROUTE.tab));
+  $$('#view-project [data-tab]').forEach(b=> b.onclick=()=>{ ROUTE.tab=b.dataset.tab; render() });
+
+  const sel=$('#board-filter'); sel.innerHTML=`<option value="">All assignees</option>` + p.memberIds.map(id=>{const u=STATE.users[id]; return `<option value="${id}">${u.name}</option>`}).join(''); sel.onchange=()=>{ renderBoard(); renderList(); };
+
+  $('#tab-board').classList.toggle('hidden', ROUTE.tab!=='board');
+  $('#tab-list').classList.toggle('hidden', ROUTE.tab!=='list');
+  $('#tab-discuss').classList.toggle('hidden', ROUTE.tab!=='discuss');
+  $('#tab-members').classList.toggle('hidden', ROUTE.tab!=='members');
+
+  renderBoard(); renderList(); renderDiscuss(); renderMembers();
+}
+
+/* Filters */
+function filteredTasks(p){
+  const assignee=$('#board-filter').value;
+  const prio=$('#prio-filter').value;
+  const q=($('#task-search').value||'').toLowerCase();
+  return p.taskIds.map(id=>STATE.tasks[id]).filter(Boolean).filter(t=>{
+    if(assignee && t.assigneeId!==assignee) return false;
+    if(prio && t.priority!==prio) return false;
+    if(q && !(t.title.toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+/* Board */
+function dueBadge(t){
+  if(!t.dueDate) return '<span class="small muted">—</span>';
+  const d = daysBetween(t.dueDate, todayISO());
+  if(d>0 && t.status!=='DONE') return `<span class="small due-over">Overdue</span>`;
+  if(d===0 && t.status!=='DONE') return `<span class="small due-soon">Due today</span>`;
+  return `<span class="small due-ok">${fmt(t.dueDate)}</span>`;
+}
+function subProgress(t){
+  const subs=t.subtasks||[]; if(!subs.length) return {done:0,total:0,pct:0};
+  const done=subs.filter(s=>s.done).length; const total=subs.length; const pct=Math.round(done/total*100);
+  return {done,total,pct};
+}
+function prioTag(p){
+  if(p==='HIGH') return `<span class="tag small">High</span>`;
+  if(p==='MED') return `<span class="tag small">Medium</span>`;
+  return `<span class="tag small">Low</span>`;
+}
+function renderTaskCard(t){
+  const u=t.assigneeId?STATE.users[t.assigneeId]:null;
+  const label=t.status==='DONE'?'Done':(t.status==='IN_PROGRESS'?'In Progress':'To-Do');
+  const sp=subProgress(t);
+  return `<div class="task" draggable="true" data-id="${t.id}">
+    <div class="row" style="justify-content:space-between">
+      <div class="title">${t.title}</div>
+      <div class="row small" style="gap:6px">
+        ${prioTag(t.priority||'LOW')}
+        <span class="tag small">${label}</span>
+      </div>
+    </div>
+    <div class="small muted">${t.description||""}</div>
+    ${sp.total?`
+      <div class="small" style="margin-top:6px">${sp.done}/${sp.total} checklist</div>
+      <div class="progress"><b style="width:${sp.pct}%"></b></div>`:""}
+    <div class="meta">
+      <div class="row small">
+        ${u?`<div class="avatar" title="${u.name}" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div><span>${u.name}</span>`:`<span class="muted small">Unassigned</span>`}
+      </div>
+      ${dueBadge(t)}
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="openModalTask('${t.projectId}','${t.id}')">Open</button>
+      <button class="btn danger" onclick="delTask('${t.id}')">Delete</button>
+    </div>
+  </div>`;
+}
+function enableDnD(){
+  const cards=$$('.task[draggable="true"]'); const zones=$$('.dropzone'); let dragging=null;
+  cards.forEach(c=>{
+    c.addEventListener('dragstart', e=>{ dragging=c; c.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    c.addEventListener('dragend', ()=>{ dragging=null; c.classList.remove('dragging'); zones.forEach(z=>z.classList.remove('active')); });
+  });
+  zones.forEach(z=>{
+    z.addEventListener('dragover', e=>{ e.preventDefault(); z.classList.add('active'); e.dataTransfer.dropEffect='move'; });
+    z.addEventListener('dragleave', ()=> z.classList.remove('active'));
+    z.addEventListener('drop', ()=>{ z.classList.remove('active'); if(!dragging) return;
+      const col=z.id==='kan-todo'?'TO_DO':(z.id==='kan-inprog'?'IN_PROGRESS':'DONE');
+      const id=dragging.getAttribute('data-id'); const t=STATE.tasks[id]; if(!t) return;
+      t.status=col; t.updatedAt=new Date().toISOString();
+      save(STATE); renderBoard(); renderList();
+    });
+  });
+}
+function renderBoard(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  const tasks=filteredTasks(p);
+  const buckets={ TO_DO:[], IN_PROGRESS:[], DONE:[] };
+  tasks.forEach(t=> buckets[t.status]?.push(t));
+  $('#count-todo').textContent=buckets.TO_DO.length;
+  $('#count-inprog').textContent=buckets.IN_PROGRESS.length;
+  $('#count-done').textContent=buckets.DONE.length;
+
+  $('#kan-todo').innerHTML = buckets.TO_DO.map(renderTaskCard).join('') || `<div class="small muted">No tasks</div>`;
+  $('#kan-inprog').innerHTML = buckets.IN_PROGRESS.map(renderTaskCard).join('') || `<div class="small muted">No tasks</div>`;
+  $('#kan-done').innerHTML = buckets.DONE.map(renderTaskCard).join('') || `<div class="small muted">No tasks</div>`;
+
+  enableDnD();
+}
+
+/* List */
+function renderList(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  const rows=filteredTasks(p);
+  $('#list-body').innerHTML = rows.map(t=>{
+    const u=t.assigneeId?STATE.users[t.assigneeId]:null;
+    const label=t.status==='DONE'?'Done':(t.status==='IN_PROGRESS'?'In Progress':'To-Do');
+    return `<tr>
+      <td><b>${t.title}</b><div class="small muted">${t.description||""}</div></td>
+      <td>${u?`<div class="row"><div class="avatar" style="width:22px;height:22px;font-size:10px">${initials(u.name)}</div>${u.name}</div>`:`<span class="small muted">Unassigned</span>`}</td>
+      <td>${dueBadge(t)}</td>
+      <td>${prioTag(t.priority||'LOW')}</td>
+      <td><span class="tag small">${label}</span></td>
+      <td style="text-align:right">
+        <button class="btn" onclick="openModalTask('${t.projectId}','${t.id}')">Edit</button>
+        <button class="btn danger" onclick="delTask('${t.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">No tasks</td></tr>`;
+}
+
+/* Discuss */
+function renderDiscuss(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  const msgs=Object.values(STATE.messages).filter(m=>m.projectId===p.id);
+  const roots=msgs.filter(m=>!m.parentId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const replies=pid=>msgs.filter(m=>m.parentId===pid);
+  const box=$('#msg-list');
+  box.innerHTML=roots.map(m=>{
+    return `<div class="card">
+      ${renderMsg(m)}
+      <div style="border-left:1px dashed var(--line); margin-top:8px; padding-left:10px">
+        ${(replies(m.id).map(renderMsg).join(''))}
+        <div class="row" style="margin-top:8px">
+          <input id="reply-${m.id}" class="input" placeholder="Write a reply..." />
+          <button class="btn" onclick="postReply('${p.id}','${m.id}')">Reply</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || `<div class="card muted">No messages yet. Start one above.</div>`;
+}
+function renderMsg(m){
+  const u=STATE.users[m.authorId];
+  return `<div class="row" style="align-items:flex-start; gap:8px">
+    <div class="avatar" style="width:28px;height:28px;font-size:11px">${initials(u?.name||'?')}</div>
+    <div>
+      <div class="small"><b>${u?.name||'Unknown'}</b> <span class="muted">• ${new Date(m.createdAt).toLocaleString()}</span></div>
+      <div>${(m.body||"").replace(/</g,"&lt;")}</div>
+    </div>
+  </div>`;
+}
+$('#msg-post').onclick=()=>{
+  const v=$('#msg-text').value.trim(); if(!v) return;
+  const me=STATE.users[STATE.session.userId];
+  const p=STATE.projects[ROUTE.projectId];
+  const m={id:uid(),authorId:me.id,projectId:p.id,body:v,createdAt:new Date().toISOString()};
+  STATE.messages[m.id]=m; save(STATE); $('#msg-text').value=""; renderDiscuss();
+};
+function postReply(projectId,parentId){
+  const me=STATE.users[STATE.session.userId];
+  const input=$(`#reply-${parentId}`); const v=input.value.trim(); if(!v) return;
+  const m={id:uid(),authorId:me.id,projectId,parentId,body:v,createdAt:new Date().toISOString()};
+  STATE.messages[m.id]=m; save(STATE); renderDiscuss();
+}
+
+/* Members */
+function renderMembers(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  $('#member-cards').innerHTML=p.memberIds.map(id=>{
+    const u=STATE.users[id];
+    return `<div class="card row">
+      <div class="avatar" style="width:36px;height:36px">${initials(u.name)}</div>
+      <div>
+        <div style="font-weight:700">${u.name}</div>
+        <div class="small muted">${u.email}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ==========================
+   NOTIFICATIONS & PROFILE
+   ========================== */
+$('#btn-ping').onclick=()=>{ const me=STATE.session.userId; STATE.notifications.push({id:uid(),userId:me,type:'INFO',body:'Demo notification ping!',read:false,ts:Date.now()}); save(STATE); render(); };
+function renderNotifications(me){
+  const items=(STATE.notifications||[]).filter(n=>n.userId===me.id).sort((a,b)=>b.ts-a.ts);
+  const box=$('#notif-list');
+  if(!items.length){ box.innerHTML=`<div class="card muted">No notifications</div>`; return; }
+  box.innerHTML=items.map(n=>{
+    const icon=n.type==='INVITE'?'📥':(n.type==='TASK_ASSIGNED'?'🗂️':(n.type==='DUE'?'⏰':'🔔'));
+    return `<div class="card row">
+      <div>${icon}</div>
+      <div>${n.body}</div>
+      <div class="small muted right">${new Date(n.ts).toLocaleString()}</div>
+    </div>`;
+  }).join('');
+  STATE.notifications=STATE.notifications.map(n=>n.userId===me.id?{...n,read:true}:n);
+  save(STATE);
+}
+function renderProfile(me){
+  $('#me-avatar').textContent=initials(me.name);
+  $('#me-name').textContent=me.name;
+  $('#me-email').textContent=me.email;
+  if ($('#pref-due')) $('#pref-due').checked = !!STATE.prefs?.notifyDue;
+  bindProfileTheme();
+}
+$('#btn-logout').onclick=()=> setState({ session:null });
+$('#pref-due').onchange=()=>{ STATE.prefs.notifyDue = $('#pref-due').checked; save(STATE); };
+
+/* Export / Import */
+$('#btn-export').onclick=()=>{
+  const data = JSON.stringify(STATE, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='synergysphere-export.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+};
+$('#file-import').onchange=(e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const obj=JSON.parse(reader.result);
+      if(!obj.users || !obj.projects) throw new Error('Invalid file');
+      localStorage.setItem(LS, JSON.stringify(obj));
+      STATE=obj; render(); alert('Imported successfully!');
+    }catch(err){ alert('Import failed: '+err.message); }
+  };
+  reader.readAsText(f);
+};
+
+/* ==========================
+   DUE CHECK
+   ========================== */
+function dueSweep(){
+  if(!STATE.prefs?.notifyDue) return;
+  const me=STATE.session?.userId;
+  const today=todayISO();
+  Object.values(STATE.tasks).forEach(t=>{
+    if(t.status==='DONE' || !t.dueDate) return;
+    const key=`${t.id}:${today}`;
+    if(STATE.dueNotified[key]) return;
+    const diff=daysBetween(t.dueDate, today);
+    if(diff>0){ // overdue
+      STATE.notifications.push({id:uid(),userId:me,projectId:t.projectId,type:'DUE',body:`Overdue: ${t.title}`,read:false,ts:Date.now()});
+      STATE.dueNotified[key]=true;
+    }else if(diff===0){
+      STATE.notifications.push({id:uid(),userId:me,projectId:t.projectId,type:'DUE',body:`Due today: ${t.title}`,read:false,ts:Date.now()});
+      STATE.dueNotified[key]=true;
+    }
+  });
+  save(STATE);
+}
+setInterval(dueSweep, 60*60*1000);
+
+/* ==========================
+   ACTIONS / MODALS
+   ========================== */
+function delTask(id){
+  const t=STATE.tasks[id]; if(!t) return;
+  const p=STATE.projects[t.projectId];
+  delete STATE.tasks[id];
+  p.taskIds=p.taskIds.filter(x=>x!==id);
+  save(STATE); renderBoard(); renderList();
+}
+
+/* Project modal */
+function openModalProject(){
+  $('#modal-body').innerHTML=`
+    <h3 class="h">Create Project</h3>
+    <div style="height:8px"></div>
+    <input id="prj-title" class="input" placeholder="Project name" />
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="createProject()">Create</button>
+    </div>`;
+  showModal();
+}
+function createProject(){
+  const name=$('#prj-title').value.trim(); if(!name) return;
+  const ownerId=STATE.session.userId;
+  const p={id:uid(),name,ownerId,memberIds:[ownerId],taskIds:[],createdAt:new Date().toISOString()};
+  STATE.projects[p.id]=p; save(STATE); closeModal(); render();
+}
+
+/* Rename project */
+function openModalRenameProject(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  $('#modal-body').innerHTML = `
+    <h3 class="h">Rename Project</h3>
+    <div style="height:8px"></div>
+    <input id="rename-title" class="input" value="${p.name.replace(/"/g,'&quot;')}" />
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="renameProject()">Save</button>
+    </div>`;
+  showModal();
+}
+function renameProject(){
+  const p=STATE.projects[ROUTE.projectId]; if(!p) return;
+  const v=$('#rename-title').value.trim(); if(!v) return;
+  p.name=v; save(STATE); closeModal(); render();
+}
+
+/* Invite modal */
+function openModalInvite(projectId){
+  $('#modal-body').innerHTML=`
+    <h3 class="h">Add member</h3>
+    <div style="height:8px"></div>
+    <input id="inv-email" class="input" placeholder="Email" />
+    <div style="height:8px"></div>
+    <input id="inv-name" class="input" placeholder="Name (optional)" />
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="inviteMember('${projectId}')">Add</button>
+    </div>`;
+  showModal();
+}
+function inviteMember(projectId){
+  const email=$('#inv-email').value.trim(); if(!email) return;
+  const name=$('#inv-name').value.trim();
+  let user=Object.values(STATE.users).find(u=>u.email.toLowerCase()===email.toLowerCase());
+  if(!user){ user={id:uid(),name:name||email,email}; STATE.users[user.id]=user; }
+  const p=STATE.projects[projectId];
+  if(!p.memberIds.includes(user.id)) p.memberIds.push(user.id);
+  STATE.notifications.push({id:uid(),userId:user.id,projectId,type:'INVITE',body:`You were added to project “${p.name}”`,read:false,ts:Date.now()});
+  save(STATE); closeModal(); renderMembers();
+}
+
+/* Task modal with Priority + Subtasks + Attachments */
+function openModalTask(projectId, taskId){
+  const isEdit=Boolean(taskId);
+  const t=isEdit?STATE.tasks[taskId]:{title:"",description:"",assigneeId:"",dueDate:todayISO(),status:"TO_DO",priority:"MED",subtasks:[],attachments:[]};
+  const p=STATE.projects[projectId];
+  const subsHtml=(t.subtasks||[]).map(s=>rowSubtask(s.id,s.text,s.done)).join('');
+  const attsHtml=(t.attachments||[]).map(a=>rowAttachment(a.id,a.name,a.url)).join('');
+  $('#modal-body').innerHTML=`
+    <h3 class="h">${isEdit?"Edit Task":"New Task"}</h3>
+    <div style="height:8px"></div>
+    <label class="small muted">Title</label>
+    <input id="tk-title" class="input" value="${(t.title||"").replace(/"/g,'&quot;')}" placeholder="Task title" />
+    <div style="height:8px"></div>
+    <label class="small muted">Description</label>
+    <textarea id="tk-desc" class="input" placeholder="Details">${(t.description||"")}</textarea>
+    <div style="height:8px"></div>
+    <div class="row" style="gap:8px; flex-wrap:wrap">
+      <div style="flex:1; min-width:160px">
+        <label class="small muted">Assignee</label>
+        <select id="tk-assignee" class="input"><option value="">Unassigned</option>${p.memberIds.map(id=>{const u=STATE.users[id]; return `<option value="${id}" ${t.assigneeId===id?"selected":""}>${u.name}</option>`}).join("")}</select>
+      </div>
+      <div style="flex:1; min-width:160px">
+        <label class="small muted">Due date</label>
+        <input id="tk-due" class="input" type="date" value="${t.dueDate||todayISO()}" />
+      </div>
+      <div style="flex:1; min-width:160px">
+        <label class="small muted">Status</label>
+        <select id="tk-status" class="input">
+          <option value="TO_DO" ${t.status==="TO_DO"?"selected":""}>To-Do</option>
+          <option value="IN_PROGRESS" ${t.status==="IN_PROGRESS"?"selected":""}>In Progress</option>
+          <option value="DONE" ${t.status==="DONE"?"selected":""}>Done</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:160px">
+        <label class="small muted">Priority</label>
+        <select id="tk-prio" class="input">
+          <option value="HIGH" ${t.priority==="HIGH"?"selected":""}>High</option>
+          <option value="MED" ${t.priority==="MED"?"selected":""}>Medium</option>
+          <option value="LOW" ${t.priority==="LOW"?"selected":""}>Low</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="row" style="justify-content:space-between">
+      <b>Checklist</b>
+      <button class="btn" onclick="addSubtaskRow()">＋ Add item</button>
+    </div>
+    <div id="sub-list">${subsHtml || `<div class="small muted">No checklist items</div>`}</div>
+
+    <div class="hr"></div>
+    <div class="row" style="justify-content:space-between">
+      <b>Attachments</b>
+      <button class="btn" onclick="addAttachmentRow()">＋ Add link</button>
+    </div>
+    <div id="att-list">${attsHtml || `<div class="small muted">No attachments</div>`}</div>
+
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="saveTask('${projectId}','${taskId||""}')">${isEdit?"Save changes":"Create task"}</button>
+    </div>`;
+  showModal();
+}
+function rowSubtask(id,text,done){
+  return `<div class="row small" data-sub="${id}">
+    <input type="checkbox" ${done?'checked':''} />
+    <input class="input" style="flex:1" value="${(text||'').replace(/"/g,'&quot;')}" placeholder="Checklist item" />
+    <button class="btn danger" onclick="this.parentElement.remove()">✕</button>
+  </div>`;
+}
+function addSubtaskRow(){
+  const c=$('#sub-list'); if(!c) return;
+  if(c.querySelector('.small.muted')) c.innerHTML='';
+  c.insertAdjacentHTML('beforeend', rowSubtask(uid(),'',false));
+}
+function rowAttachment(id,name,url){
+  return `<div class="row small" data-att="${id}">
+    <input class="input" style="flex:1" value="${(name||'').replace(/"/g,'&quot;')}" placeholder="Display name" />
+    <input class="input" style="flex:1" value="${(url||'').replace(/"/g,'&quot;')}" placeholder="https://link" />
+    <button class="btn danger" onclick="this.parentElement.remove()">✕</button>
+  </div>`;
+}
+function addAttachmentRow(){
+  const c=$('#att-list'); if(!c) return;
+  if(c.querySelector('.small.muted')) c.innerHTML='';
+  c.insertAdjacentHTML('beforeend', rowAttachment(uid(),'',''));
+}
+function saveTask(projectId,taskId){
+  const patch={
+    title:$('#tk-title').value.trim(),
+    description:$('#tk-desc').value.trim(),
+    assigneeId:$('#tk-assignee').value||undefined,
+    dueDate:$('#tk-due').value,
+    status:$('#tk-status').value,
+    priority:$('#tk-prio').value
+  };
+  const subs=[]; $$('#sub-list [data-sub]').forEach(row=>{
+    const id=row.getAttribute('data-sub'); const [cb,inp]=row.querySelectorAll('input');
+    subs.push({id, text:inp.value.trim(), done:cb.checked});
+  });
+  const atts=[]; $$('#att-list [data-att]').forEach(row=>{
+    const id=row.getAttribute('data-att'); const [n,u]=row.querySelectorAll('input');
+    if(n.value.trim() || u.value.trim()) atts.push({id,name:n.value.trim(),url:u.value.trim()});
+  });
+  patch.subtasks=subs; patch.attachments=atts;
+
+  if(taskId){
+    const t=STATE.tasks[taskId]; if(!t) return;
+    const updated={...t,...patch,updatedAt:new Date().toISOString()};
+    if(patch.assigneeId && patch.assigneeId!==t.assigneeId){
+      STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${updated.title}`,read:false,ts:Date.now()});
+    }
+    STATE.tasks[taskId]=updated; save(STATE); closeModal(); renderBoard(); renderList();
+  }else{
+    const id=uid(); const now=new Date().toISOString();
+    const t={id,projectId,createdAt:now,updatedAt:now,status:'TO_DO',priority:'MED',subtasks:[],attachments:[],...patch};
+    STATE.tasks[id]=t; STATE.projects[projectId].taskIds.unshift(id);
+    if(patch.assigneeId){
+      STATE.notifications.push({id:uid(),userId:patch.assigneeId,projectId,type:'TASK_ASSIGNED',body:`Assigned: ${t.title}`,read:false,ts:Date.now()});
+    }
+    save(STATE); closeModal(); renderBoard(); renderList();
+  }
+}
+
+/* Modal helpers */
+function showModal(){ $('#modal').classList.remove('hidden'); }
+function closeModal(){ $('#modal').classList.add('hidden'); }
+$('#modal-x').onclick=closeModal;
+
+/* ==========================
+   QUICK SEARCH (Ctrl+K)
+   ========================== */
+function openSearch(){
+  $('#search-modal').classList.remove('hidden');
+  $('#sm-input').value = ($('#global-search').value||'');
+  $('#sm-input').focus();
+  runQuickSearch();
+}
+function closeSearch(){ $('#search-modal').classList.add('hidden'); }
+$('#sm-x').onclick=closeSearch;
+$('#global-search').onfocus=()=>openSearch();
+$('#sm-input').oninput=runQuickSearch;
+function runQuickSearch(){
+  const q=($('#sm-input').value||'').toLowerCase(); const box=$('#sm-results');
+  if(!q){ box.innerHTML='<div class="small muted">Type to search…</div>'; return; }
+  const taskHits=Object.values(STATE.tasks).filter(t=> (t.title?.toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q)));
+  const msgHits=Object.values(STATE.messages).filter(m=> (m.body||'').toLowerCase().includes(q));
+  const rows=[];
+  taskHits.slice(0,8).forEach(t=>{
+    const p=STATE.projects[t.projectId];
+    rows.push(`<div class="card row"><b>Task:</b> <span>${t.title}</span> <span class="muted">• ${p?.name||''}</span> <span class="right"></span><button class="btn" onclick="closeSearch(); gotoProject('${t.projectId}')">Open</button></div>`);
+  });
+  msgHits.slice(0,8).forEach(m=>{
+    const p=STATE.projects[m.projectId];
+    rows.push(`<div class="card row"><b>Message:</b> <span>${(m.body||'').slice(0,80)}</span> <span class="muted">• ${p?.name||''}</span> <span class="right"></span><button class="btn" onclick="closeSearch(); gotoProject('${m.projectId}')">Open</button></div>`);
+  });
+  box.innerHTML = rows.join('') || '<div class="small muted">No matches</div>';
+}
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openSearch(); }
+  if(e.key==='Escape'){ closeSearch(); closeModal(); }
+});
+
+/* ==========================
+   NAV BINDINGS & INIT
+   ========================== */
+$$('.sidebar .nav button').forEach(b=> b.onclick=()=> goto(b.dataset.route));
+$$('.bottomnav button').forEach(b=> b.onclick=()=> goto(b.dataset.route));
+
+/* Initial render */
+render();
+</script>
+</body>
+</html>
